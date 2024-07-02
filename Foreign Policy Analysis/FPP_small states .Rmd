@@ -1,0 +1,1244 @@
+---
+title: "Replication File for 'Between the West and Russia: Explaining Individual Foreign Policy Preferences in the Small States'"
+output: pdf_document
+---
+
+#Short Description
+```{r}
+#This is the primary replication file for the paper. For transparency purposes, all codes used to clean data are demonstrated in this file as well. Seven data sets have been used in this paper: six data sets are downloaded from the Caucasus Barometer website(https://caucasusbarometer.org/en/) and one data set ("trade_vol.xlsx") is collected from World Bank website. We have included original data sets directly downloaded from the Caucasus Barometer website  and cleaned these data sets in the beginning of this replication file. To ensure its authenticity and transparency,  you can also directly  download the data sets from Caucasus Barometer website (https://caucasusbarometer.org/en/) and import to this replication file. You will import all data sets to this file and then just click "run all", which will first process data cleaning and then produce all graphs and tables (in an order given in the paper) except Figures 5, Figure 8, and 9 for which different replication files have been given. 
+
+#For Figure 5, "region2013" excel data will be used in Stata. The do file for Figure 5 is titled as "Figure 5". For Figure 8, the excel data titled "Figure 8" will be used. Figure 8 is graphed in Excel. Figure 9 is a combination of pie charts. I have uploaded an excel file titled "Figure 9.xlsx" to replicate the figure 9 in the manuscript. All pie charts are given within the "Figure 9.xlsx" file. The data for Figure 9 are from World Bank World Integrated Trade Solution. Meanwhile, a reviewer requested to change the pie charts to dotplot in the last email. I visualized the same information in dotplot below.The dataset for the dotplots is "trade_vol.xlsx." 
+```
+
+
+#Installing Required Packages 
+```{r}
+library(car)
+library(MASS)
+library(stargazer)
+library(carData)
+install.packages(c('dplyr', 'ggplot2', 'tidyr'))
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+#Loading all datasets 
+```{r}
+region2013<-CB2013_Regional_only_responses_07032014       #Caucasus Barometer Regional 2013
+region2015<-CB_2015_Regional_Only_Responses_140416        #Caucasus Barometer Regional 2015
+region2017<-CB_2017_Regional_Only_Responses_20_11_18      #Caucasus Barometer Regional 2017
+region2019<-cb2019_CB_2019_Regional_25_06_2020            #Caucasus Barometer Regional 2019
+EU2021<-EU_2021_Public                                    #Knowledge of and Attitudes toward the EU in Georgia 2021 (EU Survey) 
+NDI2022M<-NDI_March_2022_NDI_March_2022_8_04_2022_Public  #NDI Public Attitudes in Georgia March 2022
+trade<-trade_vol                                          #Trade Volume of Armenia (2019), Azerbaijan (1996), and Georgia (2005)
+```
+
+#Cleaning Caucasus Barometer Regional 2013
+```{r}
+#DEPENDENT VARIABLES 
+
+##Support for NATO membership(NATOSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in NATO? [NATOSUPP]; Don’t know=-1; (Refuse to answer)=-2; All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2013$NATOSUPP)
+is.na(region2013$NATOSUPP) <- which(region2013$NATOSUPP ==-1)
+is.na(region2013$NATOSUPP) <- which(region2013$NATOSUPP ==-2)
+is.na(region2013$NATOSUPP) <- which(region2013$NATOSUPP ==-3)
+
+##Support for EU Membership(EUSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in the European Union? [EUSUPP]; (Don’t know)=-1; (Refuse to answer)=-2;  All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2013$EUSUPP)
+is.na(region2013$EUSUPP) <- which(region2013$EUSUPP ==-1)
+is.na(region2013$EUSUPP) <- which(region2013$EUSUPP ==-2)
+is.na(region2013$EUSUPP) <- which(region2013$EUSUPP ==-3)
+
+##both dependent variables are factored. 
+NATOSUPP=as.factor (region2013$NATOSUPP)
+is.factor(NATOSUPP)
+EUSUPP=as.factor (region2013$EUSUPP)
+is.factor(EUSUPP)
+
+
+
+#INDEPENDENT VARIABLES  
+
+##Abstract Support for Democracy(ATTDEM) is originally coded in the following way: "1"=democracy is preferable; "2"=nondemocracy is preferable; "3"=it does not matter; "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2013$ATTDEM)
+is.na(region2013$ATTDEM) <- which(region2013$ATTDEM ==-1)
+is.na(region2013$ATTDEM) <- which(region2013$ATTDEM ==-2)
+is.na(region2013$ATTDEM) <- which(region2013$ATTDEM ==-3)
+region2013$attdemoc<-Recode(region2013$ATTDEM, "2=1; 3=2; 1=3")
+
+
+##Contextual Support for Democracy(parentem) is measured by the following question: "Please tell me which of the following statements you agree with? Statement 1: people are like children, the government should take care of them like a parent. Statement 2: government is like an employee, the people should be the bosses who control the government." Original options in this question are as follows: 1= Strongly agree with Statement 1(Government as parent),  2= Agree with Statement 1(Government as parent),  3=Agree with Statement 2(Government as employee), 4=Strongly agree with Statement 2(Government as employee), 5=Agree with neither, "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2013$GOVTROL)
+is.na(region2013$GOVTROL) <- which(region2013$GOVTROL ==-1)
+is.na(region2013$GOVTROL) <- which(region2013$GOVTROL ==-2)
+is.na(region2013$GOVTROL) <- which(region2013$GOVTROL ==-3)
+region2013$parentem<-Recode(region2013$GOVTROL,"1=1; 2=2; 5=3; 3=4; 4=5")
+
+attdemoc=as.factor (region2013$attdemoc)
+is.factor(attdemoc)
+
+parentem=as.factor (region2013$parentem)
+is.factor(parentem)
+
+
+
+#CONTROL VARIABLES
+
+##Religiosity:Attend Religious Services is measured by the following question “Apart from special occasions such as weddings and funerals, about how often do you attend religious services nowadays?” This variable has the following response options: Every day(1), More than once a week(2), once a week(3), At least once a month(4), only on special religious holidays(5), less often(6), never(7), don’t know(-1), and refuse to answer(-2), unknown(-7 and -3). We first marked all “don’t know", "refuse to answer”, and "unknown" responses as missing observations and then re-coded the variable in the reverse way to make interpretation intuitive. 
+table(region2013$RELSERV)
+is.na(region2013$RELSERV) <- which(region2013$RELSERV==-1)
+is.na(region2013$RELSERV) <- which(region2013$RELSERV==-2)
+is.na(region2013$RELSERV) <- which(region2013$RELSERV==-3)
+is.na(region2013$RELSERV) <- which(region2013$RELSERV==-7)
+region2013$religiosity<-Recode(region2013$RELSERV, "7=1; 6=2;5=3;4=4; 3=5; 2=6; 1=7")
+
+##Education(RESPEDU) increases from 1-8. We marked all "refuse to answer(-2)” and "unknown(-3)" responses as missing observations and kept original coding. There is no "don't know" responses. 
+table(region2013$RESPEDU)
+is.na(region2013$RESPEDU) <- which(region2013$RESPEDU==-2)
+is.na(region2013$RESPEDU) <- which(region2013$RESPEDU==-3)
+
+
+##Russian Language Skills(KNOWRUS) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the Russian language” The respondents are asked to rate their Russian language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-1) Don't know, (-2) Refuse to answer, and (-3)unknown.  The last three options are marked as missing observations and original coding order kept. 
+table(region2013$KNOWRUS)
+is.na(region2013$KNOWRUS) <- which(region2013$KNOWRUS==-1)
+is.na(region2013$KNOWRUS) <- which(region2013$KNOWRUS==-2)
+is.na(region2013$KNOWRUS) <- which(region2013$KNOWRUS==-3)
+
+##English Language Skills(KNOWENG) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the English language” The respondents are asked to rate their English language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-1) Don't know, (-2) Refuse to answer, and (-3)unknown.  The last three options are marked as missing observations and original coding order kept.
+table(region2013$KNOWENG)
+is.na(region2013$KNOWENG) <- which(region2013$KNOWENG==-1)
+is.na(region2013$KNOWENG) <- which(region2013$KNOWENG==-2)
+is.na(region2013$KNOWENG) <- which(region2013$KNOWENG==-3)
+
+##Economic Status(CURRUNG) rises from 1-10. The missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2013$CURRUNG)
+is.na(region2013$CURRUNG) <- which(region2013$CURRUNG==-1)
+is.na(region2013$CURRUNG) <- which(region2013$CURRUNG==-2)
+is.na(region2013$CURRUNG) <- which(region2013$CURRUNG==-3)
+is.na(region2013$CURRUNG) <- which(region2013$CURRUNG==-9)
+
+##Income(MONYTOT) is the amount of HH monetary income last month and it is originally coded as decreasing way. All missing responses(-1, 2, -3, -9) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive. 
+table(region2013$MONYTOT)
+is.na(region2013$MONYTOT) <- which(region2013$MONYTOT==-1)
+is.na(region2013$MONYTOT) <- which(region2013$MONYTOT==-2)
+is.na(region2013$MONYTOT) <- which(region2013$MONYTOT==-3)
+is.na(region2013$MONYTOT) <- which(region2013$MONYTOT==-9)
+region2013$income<-Recode(region2013$MONYTOT, "8=1; 7=2; 6=3; 5=4; 4=5; 3=6; 2=7;1=8")
+
+##Gender(RESPSEX): male(1), female(2)
+table(region2013$RESPSEX)
+
+##AGE
+table(region2013$RESPAGE)
+region2013$age<-region2013$RESPAGE
+
+##Perceived economic condition(RELCOND) is measured by "Relative to most of the households around you, would you describe the current economic condition of your household as Very poor(1), Poor(2), Fair(3), Good(4), Very good(5).All missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2013$RELCOND)
+is.na(region2013$RELCOND) <- which(region2013$RELCOND==-1)
+is.na(region2013$RELCOND) <- which(region2013$RELCOND==-2)
+is.na(region2013$RELCOND) <- which(region2013$RELCOND==-3)
+is.na(region2013$RELCOND) <- which(region2013$RELCOND==-9)
+region2013$ec_con<-region2013$RELCOND
+
+##Religiosity: Fasting is measured by "How often do you fast when it is required by your religion?" It is originally coded as Always fast(1), Often fast(2), Sometimes fast(3), Rarely fast(4), Never fast(5). ll missing responses(-1, 2, -3, -5, -7) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive. 
+table(region2013$RELFAST)
+is.na(region2013$RELFAST) <- which(region2013$RELFAST==-1)
+is.na(region2013$RELFAST) <- which(region2013$RELFAST==-2)
+is.na(region2013$RELFAST) <- which(region2013$RELFAST==-3)
+is.na(region2013$RELFAST) <- which(region2013$RELFAST==-5)
+is.na(region2013$RELFAST) <- which(region2013$RELFAST==-7)
+region2013$fasting<-Recode(region2013$RELFAST, "5=1; 4=2; 3=3; 2=4;1=5")
+
+##Country is coded as Armenia(1), Azerbaijan(2), Georgia(3) 
+region2013$Armenia<-ifelse(region2013$COUNTRY==1, 1,0)
+region2013$Azerbaijan<-ifelse(region2013$COUNTRY==2, 1,0)
+region2013$Georgia<-ifelse(region2013$COUNTRY==3, 1,0)
+```
+
+
+#Cleaning Caucasus Barometer Regional 2015
+```{r}
+#DEPENDENT VARIABLES 
+
+##Support for NATO membership(NATOSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in NATO? [NATOSUPP]; Don’t know=-1; (Refuse to answer)=-2; All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2015$NATOSUPP)
+is.na(region2015$NATOSUPP) <- which(region2015$NATOSUPP ==-1)
+is.na(region2015$NATOSUPP) <- which(region2015$NATOSUPP ==-2)
+is.na(region2015$NATOSUPP) <- which(region2015$NATOSUPP ==-3)
+
+##Support for EU Membership(EUSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in the European Union? [EUSUPP]; (Don’t know)=-1; (Refuse to answer)=-2;  All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2015$EUSUPP)
+is.na(region2015$EUSUPP) <- which(region2015$EUSUPP ==-1)
+is.na(region2015$EUSUPP) <- which(region2015$EUSUPP ==-2)
+is.na(region2015$EUSUPP) <- which(region2015$EUSUPP ==-3)
+
+NATOSUPP=as.factor (region2015$NATOSUPP)
+is.factor(NATOSUPP)
+
+EUSUPP=as.factor (region2015$EUSUPP)
+is.factor(EUSUPP)
+
+
+
+#INDEPENDENT VARIABLES  
+
+##Abstract Support for Democracy(ATTDEM) is originally coded in the following way: "1"=democracy is preferable; "2"=nondemocracy is preferable; "3"=it does not matter; "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2015$ATTDEM)
+is.na(region2015$ATTDEM) <- which(region2015$ATTDEM ==-1)
+is.na(region2015$ATTDEM) <- which(region2015$ATTDEM ==-2)
+is.na(region2015$ATTDEM) <- which(region2015$ATTDEM ==-3)
+region2015$attdemoc<-Recode(region2015$ATTDEM, "2=1; 3=2; 1=3")
+
+##Contextual Support for Democracy(parentem) is measured by the following question: "Please tell me which of the following statements you agree with? Statement 1: people are like children, the government should take care of them like a parent. Statement 2: government is like an employee, the people should be the bosses who control the government." Original options in this question are as follows: 1= Strongly agree with Statement 1(Government as parent),  2= Agree with Statement 1(Government as parent),  3=Agree with Statement 2(Government as employee), 4=Strongly agree with Statement 2(Government as employee), 5=Agree with neither, "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2015$GOVTROL)
+is.na(region2015$GOVTROL) <- which(region2015$GOVTROL ==-1)
+is.na(region2015$GOVTROL) <- which(region2015$GOVTROL ==-2)
+is.na(region2015$GOVTROL) <- which(region2015$GOVTROL ==-3)
+region2015$parentem<-Recode(region2015$GOVTROL,"1=1; 2=2; 5=3; 3=4; 4=5")
+table( region2015$parentem)
+
+attdemoc=as.factor (region2015$attdemoc)
+is.factor(attdemoc)
+
+parentem=as.factor (region2015$parentem)
+is.factor(parentem)
+
+
+
+#CONTROL VARIABLES
+
+##Religiosity: Attend Religious Services is measured by the following question “Apart from special occasions such as weddings and funerals, about how often do you attend religious services nowadays?” This variable has the following response options: Every day(1), More than once a week(2), once a week(3), At least once a month(4), only on special religious holidays(5), less often(6), never(7), don’t know(-1), and refuse to answer(-2), unknown(-7 and -3). We first marked all “don’t know", "refuse to answer”, and "unknown" responses as missing observations and then re-coded the variable in the reverse way to make interpretation intuitive. 
+table(region2015$RELSERV)
+is.na(region2015$RELSERV) <- which(region2015$RELSERV==-1)
+is.na(region2015$RELSERV) <- which(region2015$RELSERV==-2)
+is.na(region2015$RELSERV) <- which(region2015$RELSERV==-3)
+is.na(region2015$RELSERV) <- which(region2015$RELSERV==-7)
+region2015$religiosity<-Recode(region2015$RELSERV, "7=1;6=2;5=3;4=4; 3=5; 2=6; 1=7")
+
+##Education(RESPEDU) increases from 1-8. We marked all "don't know(-1)", "refuse to answer(-2)”, and "unknown(-3)" responses as missing observations and kept original coding. 
+table(region2015$RESPEDU)
+is.na(region2015$RESPEDU) <- which(region2015$RESPEDU==-1)
+is.na(region2015$RESPEDU) <- which(region2015$RESPEDU==-2)
+is.na(region2015$RESPEDU) <- which(region2015$RESPEDU==-3)
+
+##Russian Language Skills(KNOWRUS) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the Russian language” The respondents are asked to rate their Russian language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-1) Don't know, (-2) Refuse to answer, and (-3)unknown.  The last three options are marked as missing observations and original coding order kept. 
+table(region2015$KNOWRUS)
+is.na(region2015$KNOWRUS) <- which(region2015$KNOWRUS==-1)
+is.na(region2015$KNOWRUS) <- which(region2015$KNOWRUS==-2)
+is.na(region2015$KNOWRUS) <- which(region2015$KNOWRUS==-3)
+
+##English Language Skills(KNOWENG) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the English language” The respondents are asked to rate their English language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-1) Don't know, (-2) Refuse to answer, and (-3)unknown.  The last three options are marked as missing observations and original coding order kept.
+table(region2015$KNOWENG)
+is.na(region2015$KNOWENG) <- which(region2015$KNOWENG==-1)
+is.na(region2015$KNOWENG) <- which(region2015$KNOWENG==-2)
+is.na(region2015$KNOWENG) <- which(region2015$KNOWENG==-3)
+
+##Economic Status(CURRUNG) rises from 1-10. The missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2015$CURRUNG)
+is.na(region2015$CURRUNG) <- which(region2015$CURRUNG==-1)
+is.na(region2015$CURRUNG) <- which(region2015$CURRUNG==-2)
+is.na(region2015$CURRUNG) <- which(region2015$CURRUNG==-3)
+is.na(region2015$CURRUNG) <- which(region2015$CURRUNG==-9)
+
+##Income(MONYTOT) is the amount of HH monetary income last month and it is originally coded as decreasing way. All missing responses(-1, 2, -3, -9) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive.
+table(region2015$MONYTOT)
+is.na(region2015$MONYTOT) <- which(region2015$MONYTOT==-1)
+is.na(region2015$MONYTOT) <- which(region2015$MONYTOT==-2)
+is.na(region2015$MONYTOT) <- which(region2015$MONYTOT==-3)
+is.na(region2015$MONYTOT) <- which(region2015$MONYTOT==-9)
+region2015$income<-Recode(region2015$MONYTOT, "7=1; 6=2; 5=3; 4=4; 3=5; 2=6;1=7")
+
+##RESPSEX: male(1), female(2), unknown(-9). 
+table(region2015$RESPSEX)
+is.na(region2015$RESPSEX) <- which(region2015$RESPSEX==-9)
+
+##AGE
+table(region2015$AGE)
+region2015$age<-region2015$AGE
+
+##Perceived economic condition(RELCOND) is measured by "Relative to most of the households around you, would you describe the current economic condition of your household as Very poor(1), Poor(2), Fair(3), Good(4), Very good(5).All missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2015$RELCOND)
+is.na(region2015$RELCOND) <- which(region2015$RELCOND==-1)
+is.na(region2015$RELCOND) <- which(region2015$RELCOND==-2)
+is.na(region2015$RELCOND) <- which(region2015$RELCOND==-3)
+is.na(region2015$RELCOND) <- which(region2015$RELCOND==-9)
+region2015$ec_con<-region2015$RELCOND
+
+##Religiosity: Fasting is measured by "How often do you fast when it is required by your religion?" It is originally coded as Always fast(1), Often fast(2), Sometimes fast(3), Rarely fast(4), Never fast(5). ll missing responses(-1, 2, -3, -5, -7) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive. 
+table(region2015$RELFAST)
+is.na(region2015$RELFAST) <- which(region2015$RELFAST==-1)
+is.na(region2015$RELFAST) <- which(region2015$RELFAST==-2)
+is.na(region2015$RELFAST) <- which(region2015$RELFAST==-3)
+is.na(region2015$RELFAST) <- which(region2015$RELFAST==-5)
+is.na(region2015$RELFAST) <- which(region2015$RELFAST==-7)
+region2015$fasting<-Recode(region2015$RELFAST, "5=1; 4=2; 3=3; 2=4;1=5")
+
+##Country: Armenia(1), Georgia(3)
+region2015$Armenia<-ifelse(region2015$COUNTRY==1, 1, 0)
+region2015$Georgia<-ifelse(region2015$COUNTRY==3, 1, 0)
+```
+
+
+#Cleaning Caucasus Barometer Regional 2017
+```{r}
+#DEPENDENT VARIABLES 
+
+##Support for NATO membership(NATOSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in NATO? [NATOSUPP]; Don’t know=-1; (Refuse to answer)=-2; All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2017$NATOSUPP)
+is.na(region2017$NATOSUPP) <- which(region2017$NATOSUPP ==-1)
+is.na(region2017$NATOSUPP) <- which(region2017$NATOSUPP ==-2)
+is.na(region2017$NATOSUPP) <- which(region2017$NATOSUPP ==-3)
+
+##Support for EU Membership(EUSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in the European Union? [EUSUPP]; (Don’t know)=-1; (Refuse to answer)=-2;  All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2017$EUSUPP)
+is.na(region2017$EUSUPP) <- which(region2017$EUSUPP ==-1)
+is.na(region2017$EUSUPP) <- which(region2017$EUSUPP ==-2)
+is.na(region2017$EUSUPP) <- which(region2017$EUSUPP ==-3)
+
+NATOSUPP=as.factor (region2017$NATOSUPP)
+is.factor(NATOSUPP)
+
+EUSUPP=as.factor (region2017$EUSUPP)
+is.factor(EUSUPP)
+
+
+
+#INDEPENDENT VARIABLES 
+
+##Abstract Support for Democracy(ATTDEM) is originally coded in the following way: "1"=democracy is preferable; "2"=nondemocracy is preferable; "3"=it does not matter; "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2017$ATTDEM)
+is.na(region2017$ATTDEM) <- which(region2017$ATTDEM ==-1)
+is.na(region2017$ATTDEM) <- which(region2017$ATTDEM ==-2)
+is.na(region2017$ATTDEM) <- which(region2017$ATTDEM ==-3)
+region2017$attdemoc<-Recode(region2017$ATTDEM, "2=1; 3=2; 1=3")
+
+##Contextual Support for Democracy(parentem) is measured by the following question: "Please tell me which of the following statements you agree with? Statement 1: people are like children, the government should take care of them like a parent. Statement 2: government is like an employee, the people should be the bosses who control the government." Original options in this question are as follows: 1= Strongly agree with Statement 1(Government as parent),  2= Agree with Statement 1(Government as parent),  3=Agree with Statement 2(Government as employee), 4=Strongly agree with Statement 2(Government as employee), 5=Agree with neither, "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2017$GOVTROL)
+is.na(region2017$GOVTROL) <- which(region2017$GOVTROL ==-1)
+is.na(region2017$GOVTROL) <- which(region2017$GOVTROL ==-2)
+is.na(region2017$GOVTROL) <- which(region2017$GOVTROL ==-3)
+region2017$parentem<-Recode(region2017$GOVTROL,"1=1; 2=2; 5=3; 3=4; 4=5")
+
+attdemoc=as.factor (region2019$attdemoc)
+is.factor(attdemoc)
+
+parentem=as.factor (region2019$parentem)
+is.factor(parentem)
+
+
+
+#CONTROL VARIABLES
+
+##Religiosity: Attend Religious Services is measured by the following question “Apart from special occasions such as weddings and funerals, about how often do you attend religious services nowadays?” This variable has the following response options: Every day(1), More than once a week(2), once a week(3), At least once a month(4), only on special religious holidays(5), less often(6), never(7), don’t know(-1), and refuse to answer(-2), unknown(-7 and -3). We first marked all “don’t know", "refuse to answer”, and "unknown" responses as missing observations and then re-coded the variable in the reverse way to make interpretation intuitive. 
+table(region2017$RELSERV)
+is.na(region2017$RELSERV) <- which(region2017$RELSERV==-1)
+is.na(region2017$RELSERV) <- which(region2017$RELSERV==-2)
+is.na(region2017$RELSERV) <- which(region2017$RELSERV==-3)
+is.na(region2017$RELSERV) <- which(region2017$RELSERV==-7)
+region2017$religiosity<-Recode(region2017$RELSERV, "7=1;  6=2;5=3;4=4; 3=5; 2=6; 1=7")
+
+##Education(RESPEDU) increases from 1-8. We marked all "unknown(-3)" responses as missing observations and kept original coding. There are no missing observations other than "unknown(-3)" responses.  
+table(region2017$RESPEDU)
+is.na(region2017$RESPEDU) <- which(region2017$RESPEDU==-3)
+
+##Russian Language Skills(KNOWRUS) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the Russian language” The respondents are asked to rate their Russian language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, and (-1) Don't know.  The last option was marked as missing observations and original coding order kept.
+table(region2017$KNOWRUS)
+is.na(region2017$KNOWRUS) <- which(region2017$KNOWRUS==-1)
+
+##English Language Skills(KNOWENG) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the English language” The respondents are asked to rate their English language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, Refuse to answer(-2), and (-1) Don't know.  The last two options were marked as missing observations and original coding order kept.
+table(region2017$KNOWENG)
+is.na(region2017$KNOWENG) <- which(region2017$KNOWENG==-1)
+is.na(region2017$KNOWENG) <- which(region2017$KNOWENG==-2)
+
+##Economic Status(CURRUNG) rises from 1-10. The missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2017$CURRUNG)
+is.na(region2017$CURRUNG) <- which(region2017$CURRUNG==-1)
+is.na(region2017$CURRUNG) <- which(region2017$CURRUNG==-2)
+is.na(region2017$CURRUNG) <- which(region2017$CURRUNG==-3)
+is.na(region2017$CURRUNG) <- which(region2017$CURRUNG==-9)
+
+##Income(MONYTOT) is the amount of HH monetary income last month and it is originally coded as decreasing way. All missing responses(-1, 2, -3, -9) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive.
+table(region2017$MONYTOT)
+is.na(region2017$MONYTOT) <- which(region2017$MONYTOT==-1)
+is.na(region2017$MONYTOT) <- which(region2017$MONYTOT==-2)
+is.na(region2017$MONYTOT) <- which(region2017$MONYTOT==-3)
+is.na(region2017$MONYTOT) <- which(region2017$MONYTOT==-9)
+region2017$income<-Recode(region2017$MONYTOT, "8=1; 7=2; 6=3; 5=4; 4=5; 3=6; 2=7;1=8")
+
+##RESPSEX: male(1), female(2)
+table(region2017$RESPSEX)
+
+##Threat Perception(threat): “Tensions between Russia and the Western European countries and the US are detrimental to /country/.” Do you completely agree=1; Somewhat agree=2; Somewhat disagree= 3; Completely disagree?=4; (Don’t know)= -1; (Refuse to answer)=-2. All missing responses(-1, 2, -3) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive.  
+table(region2017$RAND1)
+is.na(region2017$RAND1) <- which(region2017$RAND1==-1)
+is.na(region2017$RAND1) <- which(region2017$RAND1==-2)
+is.na(region2017$RAND1) <- which(region2017$RAND1==-3)
+region2017$threat<-Recode(region2017$RAND1, "4=1; 3=2; 2=3;1=4;")
+
+##AGE
+table(region2017$AGE)
+region2017$age<-region2017$AGE
+
+##Religiosity: Fasting is measured by "How often do you fast when it is required by your religion?" It is originally coded as Always fast(1), Often fast(2), Sometimes fast(3), Rarely fast(4), Never fast(5). All missing responses(-1, 2, -3, -5, -7) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive. 
+table(region2017$RELFAST)
+is.na(region2017$RELFAST) <- which(region2017$RELFAST==-1)
+is.na(region2017$RELFAST) <- which(region2017$RELFAST==-2)
+is.na(region2017$RELFAST) <- which(region2017$RELFAST==-3)
+is.na(region2017$RELFAST) <- which(region2017$RELFAST==-5)
+is.na(region2017$RELFAST) <- which(region2017$RELFAST==-7)
+region2017$fasting<-Recode(region2017$RELFAST, "5=1; 4=2; 3=3; 2=4;1=5")
+
+##Perceived economic condition(RELCOND) is measured by "Relative to most of the households around you, would you describe the current economic condition of your household as Very poor(1), Poor(2), Fair(3), Good(4), Very good(5).All missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2017$RELCOND)
+is.na(region2017$RELCOND) <- which(region2017$RELCOND==-1)
+is.na(region2017$RELCOND) <- which(region2017$RELCOND==-2)
+is.na(region2017$RELCOND) <- which(region2017$RELCOND==-3)
+is.na(region2017$RELCOND) <- which(region2017$RELCOND==-9)
+region2017$ec_con<-region2017$RELCOND
+
+##Country: Armenia(1), Georgia(3)
+region2017$Armenia<-ifelse(region2017$COUNTRY==1, 1,0)
+region2017$Georgia<-ifelse(region2017$COUNTRY==3, 1,0)
+```
+
+
+#Cleaning Caucasus Barometer Regional 2019
+```{r}
+#DEPENDENT VARIABLES 
+
+##Support for NATO membership(NATOSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in NATO? [NATOSUPP]; Don’t know=-1; (Refuse to answer)=-2; All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations.  
+table(region2019$NATOSUPP)
+is.na(region2019$NATOSUPP) <- which(region2019$NATOSUPP ==-1)
+is.na(region2019$NATOSUPP) <- which(region2019$NATOSUPP ==-2)
+is.na(region2019$NATOSUPP) <- which(region2019$NATOSUPP ==-9)
+
+##Support for EU Membership(EUSUPP): Using a scale of 1 to 5, where code ‘1’ means no support and code ‘5’ means your full support, to what extent would you support /country’s/ membership in the European Union? [EUSUPP]; (Don’t know)=-1; (Refuse to answer)=-2;  All "don't know" and "refuse to answer" answers are marked as missing observations."-3" is unknown. The observations coded as "-3"  are also marked as missing observations. 
+table(region2019$EUSUPP)
+is.na(region2019$EUSUPP) <- which(region2019$EUSUPP ==-1)
+is.na(region2019$EUSUPP) <- which(region2019$EUSUPP ==-2)
+
+NATOSUPP=as.factor (region2019$NATOSUPP)
+is.factor(NATOSUPP)
+
+EUSUPP=as.factor (region2019$EUSUPP)
+is.factor(EUSUPP)
+
+
+
+#INDEPENDENT VARIABLES 
+
+##Abstract Support for Democracy(ATTDEM) is originally coded in the following way: "1"=democracy is preferable; "2"=nondemocracy is preferable; "3"=it does not matter; "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2019$ATTDEM)
+is.na(region2019$ATTDEM) <- which(region2019$ATTDEM ==-1)
+is.na(region2019$ATTDEM) <- which(region2019$ATTDEM ==-2)
+is.na(region2019$ATTDEM) <- which(region2019$ATTDEM ==-3)
+region2019$attdemoc<-Recode(region2019$ATTDEM, "2=1;3=2;  1=3")
+table(region2019$attdemoc)
+
+##Contextual Support for Democracy(parentem) is measured by the following question: "Please tell me which of the following statements you agree with? Statement 1: people are like children, the government should take care of them like a parent. Statement 2: government is like an employee, the people should be the bosses who control the government." Original options in this question are as follows: 1= Strongly agree with Statement 1(Government as parent),  2= Agree with Statement 1(Government as parent),  3=Agree with Statement 2(Government as employee), 4=Strongly agree with Statement 2(Government as employee), 5=Agree with neither, "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(region2019$GOVTROL)
+is.na(region2019$GOVTROL) <- which(region2019$GOVTROL ==-1)
+is.na(region2019$GOVTROL) <- which(region2019$GOVTROL ==-2)
+is.na(region2019$GOVTROL) <- which(region2019$GOVTROL ==-3)
+region2019$parentem<-Recode(region2019$GOVTROL,"1=1; 2=2; 5=3; 3=4; 4=5")
+table(region2019$parentem)
+
+attdemoc=as.factor (region2019$attdemoc)
+is.factor(attdemoc)
+
+parentem=as.factor (region2019$parentem)
+is.factor(parentem)
+
+
+
+#CONTROL VARIABLES 
+
+##Religiosity: Attend Religious Services is measured by the following question “Apart from special occasions such as weddings and funerals, about how often do you attend religious services nowadays?” This variable has the following response options: Every day(1), More than once a week(2), once a week(3), At least once a month(4), only on special religious holidays(5), less often(6), never(7), don’t know(-1), and refuse to answer(-2), unknown(-7 and -3). We first marked all “don’t know", "refuse to answer”, and "unknown" responses as missing observations and then re-coded the variable in the reverse way to make interpretation intuitive. 
+table(region2019$RELSERV)
+is.na(region2019$RELSERV) <- which(region2019$RELSERV==-1)
+is.na(region2019$RELSERV) <- which(region2019$RELSERV==-2)
+is.na(region2019$RELSERV) <- which(region2019$RELSERV==-3)
+is.na(region2019$RELSERV) <- which(region2019$RELSERV==-7)
+region2019$religiosity<-Recode(region2019$RELSERV, "7=1; 6=2;5=3;4=4; 3=5; 2=6; 1=7")
+
+##Education(RESPEDU) increases from 1-8. We marked all "don't know(-1)" and "unknown(-3)" responses as missing observations and kept original coding.  
+table(region2019$RESPEDU)
+is.na(region2019$RESPEDU) <- which(region2019$RESPEDU==-1)
+is.na(region2019$RESPEDU) <- which(region2019$RESPEDU==-3)
+
+##Russian Language Skills(KNOWRUS) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the Russian language” The respondents are asked to rate their Russian language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, and (-1) Don't know.  The last option was marked as missing observations and original coding order kept.
+table(region2019$KNOWRUS)
+is.na(region2019$KNOWRUS) <- which(region2019$KNOWRUS==-1)
+
+##English Language Skills(KNOWENG) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the English language” The respondents are asked to rate their English language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, and (-1) Don't know.  The last option was marked as missing observations and original coding order kept.
+table(region2019$KNOWENG)
+is.na(region2019$KNOWENG) <- which(region2019$KNOWENG==-1)
+
+##Economic Status(CURRUNG) rises from 1-10. The missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(region2019$CURRUNG)
+is.na(region2019$CURRUNG) <- which(region2019$CURRUNG==-1)
+is.na(region2019$CURRUNG) <- which(region2019$CURRUNG==-2)
+is.na(region2019$CURRUNG) <- which(region2019$CURRUNG==-3)
+is.na(region2019$CURRUNG) <- which(region2019$CURRUNG==-9)
+
+##Income(MONYTOT) is the amount of HH monetary income last month and it is originally coded as decreasing way. All missing responses(-1, 2, -3, -9) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive.
+table(region2019$MONYTOT)
+is.na(region2019$MONYTOT) <- which(region2019$MONYTOT==-1)
+is.na(region2019$MONYTOT) <- which(region2019$MONYTOT==-9)
+region2019$income<-Recode(region2019$MONYTOT, "9=1; 8=2; 7=3; 6=4; 5=5; 4=6; 3=7; 2=8;1=9")
+table(region2019$income)
+
+##gender(RESPSEX): male(1), female(2)
+table(region2019$RESPSEX)
+
+##AGE
+table(region2019$RESPAGE)
+region2019$age<-region2019$RESPAGE
+
+##Religiosity: Fasting is measured by "How often do you fast when it is required by your religion?" It is originally coded as Always fast(1), Often fast(2), Sometimes fast(3), Rarely fast(4), Never fast(5). All missing responses(-1, 2, -3, -5, -7) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive. 
+table(region2019$RELFAST)
+is.na(region2019$RELFAST) <- which(region2019$RELFAST==-1)
+is.na(region2019$RELFAST) <- which(region2019$RELFAST==-2)
+is.na(region2019$RELFAST) <- which(region2019$RELFAST==-3)
+is.na(region2019$RELFAST) <- which(region2019$RELFAST==-5)
+is.na(region2019$RELFAST) <- which(region2019$RELFAST==-7)
+region2019$fasting<-Recode(region2019$RELFAST, "5=1; 4=2;  3=3;  2=4;1=5")
+
+##Perceived economic condition(RELCOND) is measured by "Relative to most of the households around you, would you describe the current economic condition of your household as Very poor(1), Poor(2), Fair(3), Good(4), Very good(5).All missing responses(-1, 2, -9) were marked as missing observations and original coding order kept.
+table(region2019$RELCOND)
+is.na(region2019$RELCOND) <- which(region2019$RELCOND==-1)
+is.na(region2019$RELCOND) <- which(region2019$RELCOND==-2)
+is.na(region2019$RELCOND) <- which(region2019$RELCOND==-9)
+region2019$ec_con<-region2019$RELCOND
+
+##Country: Armenia(1), Georgia(3)
+region2019$Armenia<-ifelse(region2019$COUNTRY==1, 1,0)
+region2019$Georgia<-ifelse(region2019$COUNTRY==3, 1,0)
+```
+
+#Cleaning #Knowledge of and Attitudes toward the EU in Georgia 2021 (EU Survey) 
+```{r}
+#DEPENDENT VARIABLES 
+
+##Support for NATO Membership(NATOMEMV): If there were a referendum tomorrow would vote for or against NATO membership? Re-coded as yes(1), otherwise(0). 
+table(EU2021$NATOMEMV)
+EU2021$NATO<-ifelse(EU2021$NATOMEMV==1,1,0)
+table(EU2021$NATO)
+
+##Support for NATO Membership(EUMEMVOT): If there were a referendum tomorrow would vote for or against EU membership? Re-coded as yes(1), otherwise(0). 
+table(EU2021$EUMEMVOT)
+EU2021$EU<-ifelse(EU2021$EUMEMVOT==1,1,0)
+table(EU2021$EU)
+
+##Georgian and European Identity(EUROPEAN): Do you Agree/disagree with the statement: 'I am Georgian, and therefore I am European'.  Re-coded as yes(1), otherwise(0).
+table(EU2021$EUROPEAN)
+EU2021$iden<-ifelse(EU2021$EUROPEAN==1,1,0)
+
+
+
+#INDEPENDENT VARIABLES 
+
+##Contextual Support for Democracy(parentem) is measured by the following question: "Please tell me which of the following statements you agree with? Statement 1: people are like children, the government should take care of them like a parent. Statement 2: government is like an employee, the people should be the bosses who control the government." Original options in this question are as follows: 1= Strongly agree with Statement 1(Government as parent),  2= Agree with Statement 1(Government as parent),  3=Agree with Statement 2(Government as employee), 4=Strongly agree with Statement 2(Government as employee), 5=Agree with neither, "-1"=don't know; "-2"=Refuse to answer; "-3"=unknown. All "-1, -2, and -3" answers are marked as missing observations and then the variable is re-coded in a way that the degree of importance of democracy increases. 
+table(EU2021$GOVTROL)
+is.na(EU2021$GOVTROL) <- which(EU2021$GOVTROL==-1)
+is.na(EU2021$GOVTROL) <- which(EU2021$GOVTROL==-2)
+is.na(EU2021$GOVTROL) <- which(EU2021$GOVTROL==-3)
+EU2021$parentem<-Recode(EU2021$GOVTROL,"1=1; 2=2; 5=3; 3=4; 4=5")
+table(EU2021$parentem)
+
+
+
+#CONTROL VARIABLES 
+
+##Education(educ) increases from 1-8. We marked all missing responses(-1, -2, -3, -9) as missing observations and kept original coding order. 
+table(EU2021$EDUDGR)
+is.na(EU2021$EDUDGR) <- which(EU2021$EDUDGR==-1)
+is.na(EU2021$EDUDGR) <- which(EU2021$EDUDGR==-2)
+is.na(EU2021$EDUDGR) <- which(EU2021$EDUDGR==-3)
+is.na(EU2021$EDUDGR) <- which(EU2021$EDUDGR==-9)
+EU2021$educ<-EU2021$EDUDGR
+
+##Russian Language Skills(KNOWRUS) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the Russian language” The respondents are asked to rate their Russian language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-2) Refuse to answer, and (-3 and -9) unknown.  All missing responses(-2, -3, -9) were marked as missing observations and original coding order kept.
+table(EU2021$KNOWRUS)
+is.na(EU2021$KNOWRUS) <- which(EU2021$KNOWRUS==-2)
+is.na(EU2021$KNOWRUS) <- which(EU2021$KNOWRUS==-3)
+is.na(EU2021$KNOWRUS) <- which(EU2021$KNOWRUS==-9)
+
+##English Language Skills(KNOWENG) is measured by the following survey question: “using this CARD, please tell me which one of these levels best describes your ability in the English language” The respondents are asked to rate their English language abilities in the following way: (1) No basic knowledge, (2) Beginner, (3) Intermediate, (4) Advanced, (-2) Refuse to answer, and (-3 and -9) unknown.  All missing responses(-2, -3, -9) were marked as missing observations and original coding order kept.
+table(EU2021$KNOWENG)
+is.na(EU2021$KNOWENG) <- which(EU2021$KNOWENG==-2)
+is.na(EU2021$KNOWENG) <- which(EU2021$KNOWENG==-3)
+is.na(EU2021$KNOWENG) <- which(EU2021$KNOWENG==-9)
+
+##Economic Status(CURRUNG) rises from 1-10. The missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept. 
+table(EU2021$CURRUNG)
+is.na(EU2021$CURRUNG) <- which(EU2021$CURRUNG==-1)
+is.na(EU2021$CURRUNG) <- which(EU2021$CURRUNG==-2)
+is.na(EU2021$CURRUNG) <- which(EU2021$CURRUNG==-3)
+is.na(EU2021$CURRUNG) <- which(EU2021$CURRUNG==-9)
+
+##Gender of the respondent(RESPSEX): male(1), female(2)
+table(EU2021$sex)
+
+##age
+table(EU2021$age)
+
+##Perceived economic condition(RELCOND) is measured by "Relative to most of the households around you, would you describe the current economic condition of your household as Very poor(1), Poor(2), Fair(3), Good(4), Very good(5).All missing responses(-1, 2, -3, -9) were marked as missing observations and original coding order kept.
+table(EU2021$RELCOND)
+is.na(EU2021$RELCOND) <- which(EU2021$RELCOND==-1)
+is.na(EU2021$RELCOND) <- which(EU2021$RELCOND==-2)
+is.na(EU2021$RELCOND) <- which(EU2021$RELCOND==-3)
+is.na(EU2021$RELCOND) <- which(EU2021$RELCOND==-9)
+EU2021$ec_con<-EU2021$RELCOND
+
+##Income(MONYTOT) is the amount of HH monetary income last month and it is originally coded as decreasing way. All missing responses(-1, 2, -3, -9) were marked as missing observations and then the variable was re-coded in a reverse to make interpretation intuitive.
+table(EU2021$MONYTOT7)
+is.na(EU2021$MONYTOT7) <- which(EU2021$MONYTOT7==-1)
+is.na(EU2021$MONYTOT7) <- which(EU2021$MONYTOT7==-2)
+is.na(EU2021$MONYTOT7) <- which(EU2021$MONYTOT7==-3)
+is.na(EU2021$MONYTOT7) <- which(EU2021$MONYTOT7==-9)
+EU2021$income<-Recode(EU2021$MONYTOT7, "8=1; 7=2; 6=3; 5=4; 4=5; 3=6; 2=7;1=8")
+
+##Religiosity: Attend Religious Services is measured by the following question “Apart from special occasions such as weddings and funerals, about how often do you attend religious services nowadays?” This variable has the following response options: once a week or more often (1),  once a month(2), only on special religious holidays(3), less often(4), never(5), don’t know(-1), and refuse to answer(-2), unknown(-3, -7, -9). We first marked all “don’t know", "refuse to answer”, and "unknown" responses as missing observations and then re-coded the variable in the reverse way to make interpretation intuitive. 
+table(EU2021$RELSERV)
+is.na(EU2021$RELSERV) <- which(EU2021$RELSERV==-1)
+is.na(EU2021$RELSERV) <- which(EU2021$RELSERV==-2)
+is.na(EU2021$RELSERV) <- which(EU2021$RELSERV==-3)
+is.na(EU2021$RELSERV) <- which(EU2021$RELSERV==-7)
+is.na(EU2021$RELSERV) <- which(EU2021$RELSERV==-9)
+EU2021$religiosity<-Recode(EU2021$RELSERV, "5=1; 4=2;3=3;2=4; 1=5;")
+table(EU2021$religiosity)
+
+##Ethnic and European Identity(IDENTITY): Respondent's self-identification. Recoded as 1(both ethnic and Georgian), otherwise(0). 
+table(EU2021$IDENTITY)
+is.na(EU2021$IDENTITY) <- which(EU2021$IDENTITY==-1)
+is.na(EU2021$IDENTITY) <- which(EU2021$IDENTITY==-2)
+is.na(EU2021$IDENTITY) <- which(EU2021$IDENTITY==-9)
+EU2021$id<-Recode(EU2021$IDENTITY, "2=1; 3=0; 1=0;4=0;5=0;6=0;7=0;8=0")
+```
+
+#Cleaning NDI Public Attitudes in Georgia March 2022
+```{r}
+##DEPENDENT VARIABLES 
+
+#GENATO: Do you approve or disapprove of Georgian government's stated goal to join NATO? Coded as yes(1), otherwise(0)
+table(NDI2022M$GENATO)
+is.na(NDI2022M$GENATO) <- which(NDI2022M$GENATO==-1)
+is.na(NDI2022M$GENATO) <- which(NDI2022M$GENATO==-2)
+NDI2022M$join_NATO<-ifelse(NDI2022M$GENATO==1, 1, 0)
+
+#JOINEU: Do you approve or disapprove of Georgian government's stated goal to join EU? Coded as yes(1), otherwise(0)
+table(NDI2022M$JOINEU)
+is.na(NDI2022M$JOINEU) <- which(NDI2022M$JOINEU==-1)
+is.na(NDI2022M$JOINEU) <- which(NDI2022M$JOINEU==-2)
+NDI2022M$join_EU<-ifelse(NDI2022M$JOINEU==1, 1,0)
+
+
+##Euro-Atlantic Integration vs Better Ties with Russia(EUHAVPO): Three Variables(two binary and one with three options) are created by the following survey question.  "Please tell me which of the following statements you agree with? Statement 1: Georgia will benefit more from European and Euro-Atlantic integration (joining EU and NATO)(1), Statement 2: Georgia will benefit more from abandoning European and Euro-Atlantic integration in favor of better relations with Russia(2), Agree with neither(3)". The first variable is Euro-Atlantic Integration vs Better Ties with Russia(EAvsRussia), which is established after all missing responses(-1, -2) are marked as missing observations. This first variable((EAvsRussia)) has three options: Euro-Atlantic Integration(1), Better Ties with Russia(2), and Neither(3). This variable is used to build multinational logistic regression models in outputs 7-10 of Table 2. The models provide two coefficients, one for "Euro-Atlantic Integration", and one for "Better Ties with Russia" against the baseline "Neither".  For instance, outputs 7-8 are from Model 7 in R coding.   The second variable is "Euro-Atlantic integration(integ_EA)" coded as "favor"(1), "otherwise(0). The third variable is "Better Ties with Russia(better_rus)" coded as "favor"(1), "otherwise(0). 
+table(NDI2022M$EUHAVPO)
+is.na(NDI2022M$EUHAVPO) <- which(NDI2022M$EUHAVPO==-1)
+is.na(NDI2022M$EUHAVPO) <- which(NDI2022M$EUHAVPO==-2)
+NDI2022M$EAvsRussia<-NDI2022M$EUHAVPO  #Euro-Atlantic Integration vs Better Ties with Russia 
+NDI2022M$integ_EA<-ifelse(NDI2022M$EUHAVPO==1, 1,0) #"Euro-Atlantic Integration"
+NDI2022M$better_rus<-ifelse(NDI2022M$EUHAVPO==2, 1,0) #"Better Ties with Russia"
+
+
+#CONTROL VARIABLES 
+
+#Future Economic Decline (LKECDEC) is measured by "Considering the current situation, please tell me how likely or unlikely it is that the following scenarios will unfold in Georgia during the next year? - Economic decline / hardship in Georgia." Options are Not Likely(1), Less likely(2), Likely(3).  All missing responses are marked as missing observations and original coding order was kept.
+table(NDI2022M$LKECDEC)
+is.na(NDI2022M$LKECDEC) <- which(NDI2022M$LKECDEC==-1)
+is.na(NDI2022M$LKECDEC) <- which(NDI2022M$LKECDEC==-2)
+is.na(NDI2022M$LKECDEC) <- which(NDI2022M$LKECDEC==-9)
+NDI2022M$eco_dec<-NDI2022M$LKECDEC
+
+#Favorable View of Russian Government(OPGOVRUS) is measured by the following survey question:  What is your overall opinion of the government of Russia? Very unfavorable(1), Unfavorable(2), Favorable(3), Very favorable(4). All missing responses are marked as missing observations and original coding order was kept.
+table(NDI2022M$OPGOVRUS)
+is.na(NDI2022M$OPGOVRUS) <- which(NDI2022M$OPGOVRUS==-1)
+is.na(NDI2022M$OPGOVRUS) <- which(NDI2022M$OPGOVRUS==-2)
+is.na(NDI2022M$OPGOVRUS) <- which(NDI2022M$OPGOVRUS==-9)
+NDI2022M$rusgov_fav<-NDI2022M$OPGOVRUS
+
+#Russian Fault(FLTWARRUS): Whose fault is the War in Ukraine - Russia. Coded as yes(1), otherwise(0)
+table(NDI2022M$FLTWARRUS)
+is.na(NDI2022M$FLTWARRUS) <- which(NDI2022M$FLTWARRUS==-1)
+is.na(NDI2022M$FLTWARRUS) <- which(NDI2022M$FLTWARRUS==-2)
+is.na(NDI2022M$FLTWARRUS) <- which(NDI2022M$FLTWARRUS==-9)
+NDI2022M$rus_fault<-ifelse(NDI2022M$FLTWARRUS==1,1,0)
+
+#Russian Aggression is measured by "Considering the current situation, please tell me how likely or unlikely it is that the following scenarios will unfold in Georgia during the next year? - Russian military aggression against Georgia." Options are Not Likely(1), Less likely(2), Likely(3). All missing responses are marked as missing observations and original coding order was kept. 
+table(NDI2022M$LKRUSAGG)
+is.na(NDI2022M$LKRUSAGG) <- which(NDI2022M$LKRUSAGG==-2)
+is.na(NDI2022M$LKRUSAGG) <- which(NDI2022M$LKRUSAGG==-9)
+NDI2022M$rus_agg<-Recode(NDI2022M$LKRUSAGG, "-1=2")
+
+
+#RESPSEX: Respondent's sex. male(1), female(2)
+table(NDI2022M$RESPSEX)
+NDI2022M$sex<-NDI2022M$RESPSEX
+
+#AGEGROUP: Respondent's age
+table(NDI2022M$AGEGROUP)
+NDI2022M$age<-NDI2022M$AGEGROUP
+
+
+
+#Education increases from 1 to 6. There are no missing observations. 
+table(NDI2022M$RESPEDU)
+NDI2022M$educ<-NDI2022M$RESPEDU
+```
+
+
+#Figure 2: Support for NATO by Support for EU Membership 2013
+```{r}
+library(scales)
+library(dplyr)
+#The top part of Figure 2: Two-way table of Support for NATO by Support for EU Membership based on the Caucasus Barometer regional  2013.Note: the whole code for this table should be run separately.  This table was added at the last review. The previous version does not have it. 
+NATO=region2013$NATOSUPP 
+NATO=as.factor(NATO)
+NATO=recode_factor(NATO, '1'= "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+EU=region2013$EUSUPP
+EU=as.factor(EU)
+EU=recode_factor(EU, '1'= "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+two_way_table<-table(NATO,EU)
+two_way_table
+
+
+#The Graph in the bottom of Figure 2
+cor<-cor(region2013$NATOSUPP, region2013$EUSUPP, method = c("pearson"), use = "pairwise.complete.obs") #correlation between two DVs
+t = 68.584       #from correlation test of region2013$NATOSUPP and region2013$EUSUPP above
+df = 4885        #from correlation test of region2013$NATOSUPP and region2013$EUSUPP above
+p_value=2.2e-16  #from correlation test of region2013$NATOSUPP and region2013$EUSUPP above
+sbtitle <- sprintf("Pearson Correlation:coefficient  = %.2f, p-value < %.10f, t= %.3f, df= %.0f",  cor, p_value, t, df)
+EU_NATO<- table(region2013$NATOSUPP, region2013$EUSUPP)
+EU_NATO_p<- prop.table(EU_NATO, 1)
+EU_NATO_df <- as.data.frame(EU_NATO_p)
+names(EU_NATO_df) <- c("NATOSUPP", "EUSUPP",  "Frequency")
+EU_NATO_df$EUSUPP<-recode_factor(EU_NATO_df$EUSUPP, '1' = "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+EU_NATO_df$NATOSUPP<-recode_factor(EU_NATO_df$NATOSUPP, '1'= "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+glimpse(EU_NATO_df)
+figure2_graph<-ggplot(EU_NATO_df, aes(x=NATOSUPP, y=Frequency, fill=EUSUPP)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="Support for EU Membership by Support for NATO Membership",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    subtitle=sbtitle,
+    x="Support for NATO", y="", fill="Support for EU")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+figure2_graph
+```
+#Figure 3: Factors Influencing Support for NATO and EU Membership 2013: Abstract Support for Democracy
+```{r}
+library(dotwhisker)
+library(dplyr)
+library(ggplot2)
+#Abstract Support for Democracy
+m1f3<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE) #NATO Membership
+m2f3<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE) #EU Membership
+
+
+dwplot(list(m1f3,m2f3),
+      vline = geom_vline(
+           xintercept = 0,
+           colour = "grey80",
+           linetype = 2
+       ),
+       vars_order = c("attdemoc","religiosity", "RESPEDU", "KNOWRUS", "KNOWENG", "CURRUNG", "RESPSEX", "Armenia", "Azerbaijan", "age", "ec_con", "income", "fasting"),
+       model_order = c("Model 1", "Model 2"),
+      labels = c("NATO Membership", "EU Membership")
+       )  %>% # plot line at zero _behind_coefs
+    relabel_predictors(
+        c(
+            
+            attdemoc = "Abstract Support for Democracy",
+            religiosity = "Religiosity: Attending Religious Services",
+            RESPEDU= "Education",
+            KNOWRUS= "Russian Language Skills",
+            KNOWENG= "English Language Skills",
+            CURRUNG= "Economic Status",
+            RESPSEX= "Male(Baseline:Female)",
+            Armenia= "Armenia",
+            Azerbaijan= "Azerbaijan",
+            age= "Age",
+            ec_con = "Perceived Economic Condition ",
+            income = "Income",
+            fasting = "Religiosity: Fasting"
+        )) 
+```
+
+#Figure 4: Factors Influencing Support for NATO and EU Membership 2013: Contextual Support for Democracy
+```{r}
+m1f4<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+m2f4<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+
+
+dwplot(list(m1f4,m2f4),
+      vline = geom_vline(
+           xintercept = 0,
+           colour = "grey80",
+           linetype = 2
+       ),
+       vars_order = c("parentem","religiosity", "RESPEDU", "KNOWRUS", "KNOWENG", "CURRUNG", "RESPSEX", "Armenia", "Azerbaijan", "age", "ec_con", "income", "fasting"),
+       model_order = c("Model 1", "Model 2"),
+      labels = c("NATO Membership", "EU Membership")
+       ) %>% # plot line at zero _behind_coefs
+    relabel_predictors(
+        c(
+            
+            parentem = "Contextual Support for Democracy",
+            religiosity = "Religiosity: Attending Religious Services",
+            RESPEDU= "Education",
+            KNOWRUS= "Russian Language Skills",
+            KNOWENG= "English Language Skills",
+            CURRUNG= "Economic Status",
+            RESPSEX= "Male (Baseline:Female)",
+            Armenia= "Armenia",
+            Azerbaijan= "Azerbaijan",
+            age= "Age",
+            ec_con = "Perceived Economic Condition ",
+            income = "Income",
+            fasting = "Religiosity: Fasting"
+        )) 
+```
+
+
+#Table 1. Factors Influencing Identification with Europe and Support for NATO and EU Membership: The Analysis of EU Survey in Georgia 2021 
+```{r}
+library(stargazer)
+m1<-glm(iden~parentem, data = EU2021, family="binomial")
+m2<-glm(iden~parentem+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+m3<-glm(id~parentem, data = EU2021, family="binomial")
+m4<-glm(id~parentem+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+
+m5<-glm(NATO~iden, data = EU2021, family="binomial")
+m6<-glm(NATO~iden+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+m7<-glm(NATO~id, data = EU2021, family="binomial")
+m8<-glm(NATO~id+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+
+
+m9<-glm(EU~iden, data = EU2021, family="binomial")
+m10<-glm(EU~iden+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+m11<-glm(EU~id, data = EU2021, family="binomial")
+m12<-glm(EU~id+religiosity+educ+KNOWRUS+KNOWENG+CURRUNG+sex+age+ec_con+income, data = EU2021, family="binomial")
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,  ord.intercepts=T, dep.var.labels=c("Georgian and European Identity", "Ethnic and European Identity", "Support for NATO", "Support for EU"), covariate.labels=c("Contextual Support for Democracy", "Religiosity: Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)", "Age", "Perceived Economic Condition", "Income", "Both Georgian and European Identity", "Both Ethnic and European Identity"), type="text")          #produces Table in Appendix Table 1 
+```
+#Figure 5: The predicted probabilities of support for NATO and the EU 
+```{r}
+#We have provided data(region2013.xlsx) and do.file(Figure 5) to replicate predicted probabilities in Stata. 
+```
+
+
+#Figure 6: Support for NATO and EU Membership 
+```{r}
+library(scales)
+
+#NATO: the plot on the left side of Figure 6
+NATO <- table(region2013$NATOSUPP)
+NATO_p<-prop.table(NATO)
+NATO_df<-as.data.frame(NATO_p)
+names(NATO_df) <- c("NATOSUPP", "Frequency")
+NATO_df$NATOSUPP<-recode_factor(NATO_df$NATOSUPP, '1' = "No support at all ", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+Figure_6_left<-ggplot(data=NATO_df, mapping=aes(x=NATOSUPP, y=Frequency)) + 
+  geom_col()+
+  scale_y_continuous(label=percent)+
+  geom_col(fill="red", alpha=0.5)+
+  labs(title="Support for NATO Membership",
+    subtitle="Percentage of individuals supporting NATO Membership",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    x="Support for NATO Membership", y="")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12)) +
+  theme(panel.grid.major.x = element_blank())+
+  geom_text(mapping=aes(x=NATOSUPP, y=Frequency,
+                        label=percent(Frequency)), size=5, nudge_y=0.03)
+Figure_6_left
+
+#EU: the plot on the right of Figure 6
+EU<- table(region2013$EUSUPP)
+EU_p<-prop.table(EU)
+EU_df<-as.data.frame(EU_p)
+names(EU_df) <- c("EUSUPP", "Frequency")
+EU_df$EUSUPP<-recode_factor(EU_df$EUSUPP, '1' = "No support at all ", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+Figure_6_right<-ggplot(data=EU_df, mapping=aes(x=EUSUPP, y=Frequency)) + 
+  geom_col()+
+  scale_y_continuous(label=percent)+
+  geom_col(fill="red", alpha=0.5)+
+  labs(title="Support for EU Membership",
+    subtitle="Percentage of individuals supporting EU Membership",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    x="Support for EU Membership", y="")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12)) +
+  theme(panel.grid.major.x = element_blank())+
+  geom_text(mapping=aes(x=EUSUPP, y=Frequency,
+                        label=percent(Frequency)), size=5, nudge_y=0.03)
+Figure_6_right
+```
+
+#Figure 7: Support for NATO and EU Membership by Support for Democracy
+```{r}
+library(scales)
+
+#Top left of Figure 7: Support for NATO membership by Abstract Support for Democracy
+cht <- chisq.test(region2013$attdemoc, region2013$NATOSUPP)
+cht$statistic
+cht$p.value
+sbtitle <- sprintf("Chi-Square Test of Independence:Test Statistic = %.1f, P-value = %.3f", cht$statistic, cht$p.value)
+NATO_abs<- table(region2013$attdemoc, region2013$NATOSUPP)
+NATO_abs_p<- prop.table(NATO_abs, 1)
+NATO_abs_df <- as.data.frame(NATO_abs_p)
+names(NATO_abs_df) <- c("attdemoc", "NATOSUPP",  "Frequency")
+NATO_abs_df$NATOSUPP<-recode_factor(NATO_abs_df$NATOSUPP, '1' = "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+NATO_abs_df$attdemoc<-recode_factor(NATO_abs_df$attdemoc, '1' = "Non-democracy", '2'= "No Preference", '3' = "Democracy")
+glimpse(NATO_abs_df)
+NATO_by_abs<-ggplot(NATO_abs_df, aes(x=attdemoc, y=Frequency, fill=NATOSUPP)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="Support for NATO Membership by Abstract Support for Democracy",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    subtitle=sbtitle,
+    x="Abstract Support for Democracy", y="", fill="Support for NATO")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+NATO_by_abs
+
+
+
+#Top Right of Figure 7: Support for NATO membership by Contextual Support for Democracy
+cht <- chisq.test(region2013$parentem, region2013$NATOSUPP)
+cht$statistic
+cht$p.value
+sbtitle <- sprintf("Chi-Square Test of Independence:Test Statistic = %.1f, P-value = %.3f", cht$statistic, cht$p.value)
+NATO_par<- table(region2013$parentem, region2013$NATOSUPP)
+NATO_par_p<- prop.table(NATO_par, 1)
+NATO_par_df <- as.data.frame(NATO_par_p)
+names(NATO_par_df) <- c("parentem", "NATOSUPP",  "Frequency")
+NATO_par_df$NATOSUPP<-recode_factor(NATO_par_df$NATOSUPP, '1' = "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+NATO_par_df$parentem<-recode_factor(NATO_par_df$parentem, '1' = "Strongly disagree", '2'= "Disagree", '3' = "Neither", '4'="Agree", '5'="Strongly agree")
+glimpse(NATO_par_df)
+NATO_by_par<-ggplot(NATO_par_df, aes(x=parentem, y=Frequency, fill=NATOSUPP)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="Support for NATO Membership by Contextual Support for Democracy",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    subtitle=sbtitle,
+    x="Contextual Support for Democracy", y="", fill="Support for NATO")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+NATO_by_par
+
+
+
+
+
+#Bottom left of Figure 7: Support for EU membership  by Abstract Support for Democracy
+cht <- chisq.test(region2013$attdemoc, region2013$EUSUPP)
+cht$statistic
+cht$p.value
+sbtitle <- sprintf("Chi-Square Test of Independence:Test Statistic = %.1f, P-value = %.3f", cht$statistic, cht$p.value)
+EU_abs<- table(region2013$attdemoc, region2013$EUSUPP)
+EU_abs_p<- prop.table(EU_abs, 1)
+EU_abs_df <- as.data.frame(EU_abs_p)
+names(EU_abs_df) <- c("attdemoc", "EUSUPP",  "Frequency")
+EU_abs_df$EUSUPP<-recode_factor(EU_abs_df$EUSUPP, '1' = "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+EU_abs_df$attdemoc<-recode_factor(EU_abs_df$attdemoc, '1' = "Non-democracy", '2'= "No Preference", '3' = "Democracy")
+glimpse(EU_abs_df)
+EU_by_abs<-ggplot(EU_abs_df, aes(x=attdemoc, y=Frequency, fill=EUSUPP)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="Support for EU Membership by Abstract Support for Democracy",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    subtitle=sbtitle,
+    x="Abstract Support for Democracy", y="", fill="Support for EU")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+EU_by_abs
+
+
+
+
+#Bottom Right of Figure 7: Support for EU membership by Contextual Support for Democracy
+cht <- chisq.test(region2013$parentem, region2013$EUSUPP)
+cht$statistic
+cht$p.value
+sbtitle <- sprintf("Chi-Square Test of Independence:Test Statistic = %.1f, P-value = %.3f", cht$statistic, cht$p.value)
+EU_par<- table(region2013$parentem, region2013$EUSUPP)
+EU_par_p<- prop.table(EU_par, 1)
+EU_par_df <- as.data.frame(EU_par_p)
+names(EU_par_df) <- c("parentem", "EUSUPP",  "Frequency")
+EU_par_df$EUSUPP<-recode_factor(EU_par_df$EUSUPP, '1' = "No support at all", '2'= "Rather not support", '3' = "Neutral",'4' = "Rather support",'5' = "Fully support")
+EU_par_df$parentem<-recode_factor(EU_par_df$parentem, '1' = "Strongly disagree", '2'= "Disagree", '3' = "Neither", '4'="Agree", '5'="Strongly agree")
+glimpse(EU_par_df)
+EU_by_par<-ggplot(EU_par_df, aes(x=parentem, y=Frequency, fill=EUSUPP)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="Support for EU Membership by Contextual Support for Democracy",
+    caption="Source: The Caucasus Barometer Regional 2013",
+    subtitle=sbtitle,
+    x="Contextual Support for Democracy", y="", fill="Support for EU")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+EU_by_par
+```
+#Figure 8. Percentages of Responses to the Statement: 'I am Georgian, and therefore I am European'
+```{r}
+#Figure 8 is uploaded as an excel file, which has both Figure 8 and the data for Figure 8.  The data source is Knowledge of and attitudes toward the EU in Georgia time-series (EU Survey), CRRC. For transparency purposes,  the original online data could be directly accessed via this link: https://caucasusbarometer.org/en/eu_ge/EUROPEAN/ This online data link demonstrates the exact same data illustrated in Figure 8. 
+```
+
+
+#Figure 9: Top Five Trade Partners of the Caucasian States
+```{r}
+#Figure 9 is a combination of pie charts. I have uploaded an excel file titled "Figure 9.xlsx" to replicate the figure 9 in the manuscript. All pie charts are given within the "Figure 9.xlsx" file. The data for Figure 9 are from World Bank World Integrated Trade Solution. For transparency purposes, the following links could be used to reach original data.
+
+#Armenia: https://wits.worldbank.org/CountryProfile/en/Country/ARM/Year/2019/Summary
+#Azerbaijan: https://wits.worldbank.org/CountryProfile/en/Country/AZE/Year/1996/Summary
+#Georgia: https://wits.worldbank.org/CountryProfile/en/Country/GEO/Year/2005/Summary
+
+
+
+#Meanwhile, a reviewer requested to change the pie charts to dotplot in the last email. I visualized the same information in dotplot below.The dataset for the dotplots is "trade_vol.xlsx." 
+
+library(ggplot2)
+trade<-trade_vol #assigning the data 
+
+#Top Five Exports from Armenia, Azerbaijan, and Georgia
+export<-ggplot(trade, aes(x=cname, y=export, fill=ex_con)) +
+  geom_dotplot(binwidth = 1, binaxis='y', stackdir='center', stackratio=1, dotsize=0.5)+
+labs(title="Top Five Exports from Armenia, Azerbaijan, and Georgia",x="", y = "Percentage of Total Export", fill="Countries", width = 0.1)
+export
+
+#Top Five Imports to Armenia, Azerbaijan, and Georgia
+import<-ggplot(trade, aes(x=cname, y=import, fill=im_con)) +
+  geom_dotplot(binwidth = 1, binaxis='y', stackdir='center', stackratio=1, dotsize=0.4)+
+labs(title="Top Five Imports to Armenia, Azerbaijan, and Georgia",x="", y = "Percentage of Total Import", fill="Countries", width = 0.1)
+import
+```
+
+
+#Table 2. Factors Influencing Support for Euro-Atlantic Integration and Integration to Russia: NDI Public Attitudes in Georgia March 2022
+```{r}
+require(nnet)
+m1t2<-glm(join_NATO~eco_dec, family="binomial", data = NDI2022M)
+m2t2<-glm(join_NATO~eco_dec+rusgov_fav+rus_fault+rus_agg+sex+age+educ, family="binomial", data = NDI2022M)
+m3t2<-glm(join_EU~eco_dec, family="binomial", data = NDI2022M)
+m4t2<-glm(join_EU~eco_dec+rusgov_fav+rus_fault+rus_agg+sex+age+educ, family="binomial", data = NDI2022M)
+m5t2<-glm(integ_EA~eco_dec, family="binomial", data = NDI2022M)
+m6t2<-glm(integ_EA~eco_dec+rusgov_fav+rus_fault+rus_agg+sex+age+educ, family="binomial", data = NDI2022M)
+
+#Multinational Models. Since these models provide separate coefficients for Euro-Atlantic Integration(1) and Better Ties with Russia(2) against the reference category(Neither-3), Stargazer output below provides two separate outputs for one model. The output from model 7 is given in 7 and 8 of Table 2. Similarly, the output from Model 8 is given in 9 and 10 of Table 2. 
+NDI2022M$EAvsRussia<- relevel(as.factor(NDI2022M$EAvsRussia), ref = "3") #setting "Neither(3)" option as a reference category before running multinational model 
+m7t2<- multinom(EAvsRussia~eco_dec, data=NDI2022M) 
+m8t2<- multinom(EAvsRussia~eco_dec+rusgov_fav+rus_fault+rus_agg+sex+age+educ, data=NDI2022M)
+
+m1t2$AIC <- AIC(m1t2)
+m2t2$AIC <- AIC(m2t2)
+m3t2$AIC <- AIC(m3t2)
+m4t2$AIC <- AIC(m4t2)
+m5t2$AIC <- AIC(m5t2)
+m6t2$AIC <- AIC(m6t2)
+m7t2$AIC <- AIC(m7t2)
+m8t2$AIC <- AIC(m8t2)
+
+m1t2$BIC <- BIC(m1t2)
+m2t2$BIC <- BIC(m2t2)
+m3t2$BIC <- BIC(m3t2)
+m4t2$BIC <- BIC(m4t2)
+m5t2$BIC <- BIC(m5t2)
+m6t2$BIC <- BIC(m6t2)
+m7t2$BIC <- BIC(m7t2)
+m8t2$BIC <- BIC(m8t2)
+
+stargazer(m1t2, m2t2, m3t2, m4t2, m5t2, m6t2, m7t2, m8t2, ord.intercepts=T, dep.var.labels=c("Support for NATO", "Support for EU", "Euro-Atlantic Integration", "Euro-Atlantic Integration", "Better Ties with Russia", "Euro-Atlantic Integration", "Better Ties with Russia"), covariate.labels=c("Future Economic Decline", "Favorable View of Russian Gov", "Russian Fault", "Russian Aggression", "Male(Baseline:Female)", "Age", "Education"), type="text")         #produces Table in Table 2. 
+```
+
+
+#Appendix B: Factors Influencing Support for NATO and EU Membership: Analysis of the Caucasus Barometer Regional 2013
+```{r}
+#Support for NATO membership
+m1b<-polr(as.factor(NATOSUPP)~attdemoc, data =region2013, Hess=TRUE)
+m2b<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+m3b<-polr(as.factor(NATOSUPP)~parentem, data =region2013, Hess=TRUE)
+m4b<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+
+#Support for EU membership
+m5b<-polr(as.factor(EUSUPP)~attdemoc, data =region2013, Hess=TRUE)
+m6b<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+m7b<-polr(as.factor(EUSUPP)~parentem, data =region2013, Hess=TRUE)
+m8b<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+Azerbaijan+age+ec_con+income+fasting, data =region2013, Hess=TRUE)
+
+m1b$AIC <- AIC(m1b)
+m2b$AIC <- AIC(m2b)
+m3b$AIC <- AIC(m3b)
+m4b$AIC <- AIC(m4b)
+m5b$AIC <- AIC(m5b)
+m6b$AIC <- AIC(m6b)
+m7b$AIC <- AIC(m7b)
+m8b$AIC <- AIC(m8b)
+
+m1b$BIC <- BIC(m1b)
+m2b$BIC <- BIC(m2b)
+m3b$BIC <- BIC(m3b)
+m4b$BIC <- BIC(m4b)
+m5b$BIC <- BIC(m5b)
+m6b$BIC <- BIC(m6b)
+m7b$BIC <- BIC(m7b)
+m8b$BIC <- BIC(m8b)
+
+stargazer(m1b,m2b, m3b, m4b, m5b, m6b, m7b, m8b, ord.intercepts=T, dep.var.labels=c("Support for NATO Membership", "Support for EU Membership"), covariate.labels=c("Abstract Support for Democracy", "Religiosity:Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)", "Armenia","Azerbaijan","Age", "Perceived Economic Condition", "Income", "Religiosity: Fasting", "Contextual Support for Democracy"), type="text")               #produces Table in Appendix B.  cut-points are additions requested by a reviewer
+```
+
+
+#Appendix C: Factors Influencing Support for NATO and EU Membership: Analysis of the Caucasus Barometer Regional 2013 (Only Armenia and Georgia)
+```{r}
+region2013AG<-subset(region2013, COUNTRY==1|COUNTRY==3) #region2013 is Caucasus Regional 2013 survey, which has data from all three countries. Its "COUNTRY" variable is coded as Armenia(1), Azerbaijan(2), and Georgia(3).  region2013AG is created by subseting Armenia(1) and Georgia(3) from region2013. 
+
+#Support for NATO membership
+m1c<-polr(as.factor(NATOSUPP)~attdemoc, data =region2013AG, Hess=TRUE)
+m2c<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2013AG, Hess=TRUE)
+m3c<-polr(as.factor(NATOSUPP)~parentem, data =region2013AG, Hess=TRUE)
+m4c<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2013AG, Hess=TRUE)
+
+##Support for EU membership
+m5c<-polr(as.factor(EUSUPP)~attdemoc, data =region2013AG, Hess=TRUE)
+m6c<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2013AG, Hess=TRUE)
+m7c<-polr(as.factor(EUSUPP)~parentem, data =region2013AG, Hess=TRUE)
+m8c<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2013AG, Hess=TRUE)
+
+m1c$AIC <- AIC(m1c)
+m2c$AIC <- AIC(m2c)
+m3c$AIC <- AIC(m3c)
+m4c$AIC <- AIC(m4c)
+m5c$AIC <- AIC(m5c)
+m6c$AIC <- AIC(m6c)
+m7c$AIC <- AIC(m7c)
+m8c$AIC <- AIC(m8c)
+
+m1c$BIC <- BIC(m1c)
+m2c$BIC <- BIC(m2c)
+m3c$BIC <- BIC(m3c)
+m4c$BIC <- BIC(m4c)
+m5c$BIC <- BIC(m5c)
+m6c$BIC <- BIC(m6c)
+m7c$BIC <- BIC(m7c)
+m8c$BIC <- BIC(m8c)
+
+stargazer(m1c, m2c, m3c, m4c, m5c, m6c, m7c, m8c, ord.intercepts=T, dep.var.labels=c("Support for NATO Membership", "Support for EU Membership"), covariate.labels=c("Abstract Support for Democracy", "Religiosity:Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)", "Armenia","Age", "Perceived Economic Condition", "Income", "Religiosity: Fasting", "Contextual Support for Democracy"), type="text")          #produces Table in Appendix C   cut-points are additions requested by a reviewer
+```
+
+#Appendix D: Factors Influencing Support for NATO and EU Membership: Analysis of the Caucasus Barometer Regional 2015 (Armenia and Georgia)
+```{r}
+##Support for NATO membership
+m1d<-polr(as.factor(NATOSUPP)~attdemoc, data =region2015, Hess=TRUE)
+m2d<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2015, Hess=TRUE)
+m3d<-polr(as.factor(NATOSUPP)~parentem, data =region2015, Hess=TRUE)
+m4d<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2015, Hess=TRUE)
+
+
+##Support for EU membership
+m5d<-polr(as.factor(EUSUPP)~attdemoc, data =region2015, Hess=TRUE)
+m6d<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2015, Hess=TRUE)
+m7d<-polr(as.factor(EUSUPP)~parentem, data =region2015, Hess=TRUE)
+m8d<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2015, Hess=TRUE)
+
+m1d$AIC <- AIC(m1d)
+m2d$AIC <- AIC(m2d)
+m3d$AIC <- AIC(m3d)
+m4d$AIC <- AIC(m4d)
+m5d$AIC <- AIC(m5d)
+m6d$AIC <- AIC(m6d)
+m7d$AIC <- AIC(m7d)
+m8d$AIC <- AIC(m8d)
+
+m1d$BIC <- BIC(m1d)
+m2d$BIC <- BIC(m2d)
+m3d$BIC <- BIC(m3d)
+m4d$BIC <- BIC(m4d)
+m5d$BIC <- BIC(m5d)
+m6d$BIC <- BIC(m6d)
+m7d$BIC <- BIC(m7d)
+m8d$BIC <- BIC(m8d)
+
+stargazer(m1d, m2d, m3d, m4d, m5d, m6d, m7d, m8d, ord.intercepts=T, dep.var.labels=c("Support for NATO Membership", "Support for EU Membership"), covariate.labels=c("Abstract Support for Democracy", "Religiosity:Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)", "Armenia","Age", "Perceived Economic Condition", "Income", "Religiosity: Fasting", "Contextual Support for Democracy"), type="text")          #produces Table in Appendix D   cut-points are additions requested by a reviewer
+```
+
+# Appendix E: Factors Influencing Support for NATO and EU Membership: Analysis of the Caucasus Barometer Regional 2017(Armenia and Georgia)
+```{r}
+##Support for NATO Membership
+library(MASS)
+m1e<-polr(as.factor(NATOSUPP)~attdemoc, data =region2017, Hess=TRUE)
+m2e<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+threat+Armenia+age+ec_con+income+fasting, data =region2017, Hess=TRUE)
+m3e<-polr(as.factor(NATOSUPP)~parentem, data =region2017, Hess=TRUE)
+m4e<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+threat+Armenia+age+ec_con+income+fasting, data =region2017, Hess=TRUE)
+
+
+##Support for EU membership
+m5e<-polr(as.factor(EUSUPP)~attdemoc, data =region2017, Hess=TRUE)
+m6e<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+threat+Armenia+age+ec_con+income+fasting, data =region2017, Hess=TRUE)
+m7e<-polr(as.factor(EUSUPP)~parentem, data =region2017, Hess=TRUE)
+m8e<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+threat+Armenia+age+ec_con+income+fasting, data =region2017, Hess=TRUE)
+
+m1e$AIC <- AIC(m1e)
+m2e$AIC <- AIC(m2e)
+m3e$AIC <- AIC(m3e)
+m4e$AIC <- AIC(m4e)
+m5e$AIC <- AIC(m5e)
+m6e$AIC <- AIC(m6e)
+m7e$AIC <- AIC(m7e)
+m8e$AIC <- AIC(m8e)
+
+m1eBIC <- BIC(m1e)
+m2e$BIC <- BIC(m2e)
+m3e$BIC <- BIC(m3e)
+m4e$BIC <- BIC(m4e)
+m5e$BIC <- BIC(m5e)
+m6e$BIC <- BIC(m6e)
+m7e$BIC <- BIC(m7e)
+m8e$BIC <- BIC(m8e)
+stargazer(m1e, m2e, m3e, m4e, m5e, m6e, m7e, m8e, ord.intercepts=T, dep.var.labels=c("Support for NATO Membership", "Support for EU Membership"), covariate.labels=c("Abstract Support for Democracy", "Religiosity:Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)","Threat Perception", "Armenia","Age", "Perceived Economic Condition", "Income", "Religiosity: Fasting", "Contextual Support for Democracy"), type="text")          #produces Table in Appendix E  cut-points are additions requested by a reviewer
+```
+
+#Appendix F: Factors Influencing Support for NATO and EU Membership: Analysis of the Caucasus Barometer Regional 2019(Armenia and Georgia)
+```{r}
+##Support for NATO Membership
+library(MASS)
+m1f<-polr(as.factor(NATOSUPP)~attdemoc, data =region2019, Hess=TRUE)
+m2f<-polr(as.factor(NATOSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2019, Hess=TRUE)
+m3f<-polr(as.factor(NATOSUPP)~parentem, data =region2019, Hess=TRUE)
+m4f<-polr(as.factor(NATOSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2019, Hess=TRUE)
+
+
+##Support for EU Membership
+m5f<-polr(as.factor(EUSUPP)~attdemoc, data =region2019, Hess=TRUE)
+m6f<-polr(as.factor(EUSUPP)~attdemoc+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2019, Hess=TRUE)
+m7f<-polr(as.factor(EUSUPP)~parentem, data =region2019, Hess=TRUE)
+m8f<-polr(as.factor(EUSUPP)~parentem+religiosity+RESPEDU+KNOWRUS+KNOWENG+CURRUNG+RESPSEX+Armenia+age+ec_con+income+fasting, data =region2019, Hess=TRUE)
+
+m1f$AIC <- AIC(m1f)
+m2f$AIC <- AIC(m2f)
+m3f$AIC <- AIC(m3f)
+m4f$AIC <- AIC(m4f)
+m5f$AIC <- AIC(m5f)
+m6f$AIC <- AIC(m6f)
+m7f$AIC <- AIC(m7f)
+m8f$AIC <- AIC(m8f)
+
+m1f$BIC <- BIC(m1f)
+m2f$BIC <- BIC(m2f)
+m3f$BIC <- BIC(m3f)
+m4f$BIC <- BIC(m4f)
+m5f$BIC <- BIC(m5f)
+m6f$BIC <- BIC(m6f)
+m7f$BIC <- BIC(m7f)
+m8f$BIC <- BIC(m8f)
+
+stargazer(m1f, m2f, m3f, m4f, m5f, m6f, m7f, m8f, ord.intercepts=T, dep.var.labels=c("Support for NATO Membership", "Support for EU Membership"), covariate.labels=c("Abstract Support for Democracy", "Religiosity:Attend Religious Services", "Education", "Russian Language Skills", "English Language Skills", "Economic Status", "Male(baseline:Female)", "Armenia","Age", "Perceived Economic Condition", "Income", "Religiosity: Fasting", "Contextual Support for Democracy"), type="text")          #produces Table in Appendix F   cut-points are additions requested by a reviewer
+```
+
+
+#Exporting Excel Data to replicate predicted probablities(Figure ) in Stata
+```{r}
+#We have included this excel data in our replication files as well. For transparency purposes, we included this code here to demonstrate how we obtained region2013 data before analyzing it in Stata. Raw data is downloaded, imported, cleaned,and exported.  
+install.packages("writexl")
+library(writexl)
+write_xlsx(x=region2013, path="region2013.xlsx", col_names=TRUE)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
