@@ -1,0 +1,1135 @@
+---
+title: "Armenia and Georgia"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+# Read Me
+```{r}
+# This R markdown provides all the codes used for "In defence of the nation: Why do churches receive public trust as high as their secular counterparts?" article published in Nations and Nationalism journal. Once you install packages and import data, all codes should work by just clicking "run all" button. 
+```
+
+
+```{r}
+# install.packages(c("car", "ggplot2", "stargazer", "writexl", "foreign", "MASS", "Hmisc", "reshape2", "dplyr"))
+library(car)
+library(ggplot2)
+library(stargazer)
+library(writexl)
+require(foreign)
+require(ggplot2)
+require(MASS)
+require(Hmisc)
+require(reshape2)
+require(dplyr)
+```
+
+# Loading Data: Seven Datasets are Used 
+```{r}
+library(haven)
+EVS_WVS<-read_sav("EVS_WVS_Joint_spss_v3_0.sav")
+Georgia2009<-read_sav("WV5_Data_Georgia_Spss_v20201117.sav")
+Georgia2014<-read_sav("WV6_Data_Georgia_Spss_v20201117.sav")
+Georgia2018<-subset(EVS_WVS, cntry==268)
+
+Armenia2011<-read_sav("WV6_Data_Armenia_Spss_v20201117.sav")
+Armenia2018<-subset(EVS_WVS, cntrycow==371)
+Armenia2021<-read_sav("WVS_Wave_7_Armenia_Spss_v3.0.sav")
+```
+
+
+# Variables: Georgia 2009 
+```{r}
+## DV
+
+#trust in religious organizations 
+Georgia2009$rel_trust<-Recode(Georgia2009$V131, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$rel_trust)
+
+## Independent variables 
+
+#Being part of nation 
+Georgia2009$part_nation<-Recode(Georgia2009$V212, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$part_nation)
+
+#Proud of national identity
+is.na(Georgia2009$V209) <- which(Georgia2009$V209 ==-1)
+is.na(Georgia2009$V209) <- which(Georgia2009$V209 ==-2)
+Georgia2009$proud_nation<-Recode(Georgia2009$V209, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2009$proud_nation)
+
+
+## CONTROLS 
+
+#importance of religion in life 
+table(Georgia2009$V9)
+Georgia2009$importance_rel<-Recode(Georgia2009$V9, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2009$importance_rel)
+
+#Interpersonal trust 
+Georgia2009$inter_trust<-Georgia2009$V47
+table(Georgia2009$inter_trust)
+
+#Membership to religious organizations 
+table(Georgia2009$V185b)
+Georgia2009$rel_member<-Recode(Georgia2009$V185b, "1e+07=0;30100000=1;30202001=0; 4e+07=0; 5e+07=0; 6e+07=0; 7e+07=0;80213304=0; 90600000=0; 100000020=0")
+table(Georgia2009$rel_member)
+
+#Income level
+Georgia2009$income<-Georgia2009$V253
+
+#education level
+table(Georgia2009$V238)
+Georgia2009$educ<-Recode(Georgia2009$V238, "2=1; 3=2; 4=3; 5=4; 6=5; 7=6; 8=7; 9=8")
+table(Georgia2009$educ)
+
+#religiosity
+Georgia2009$religiosity<-Recode(Georgia2009$V186, "7=1; 6=2; 5=3; 4=4; 3=5; 2=6; 1=7")
+table(Georgia2009$religiosity)
+
+
+#importance of traditions
+Georgia2009$important_trad<-Recode(Georgia2009$V89, "6=1; 5=2; 4=3; 3=4; 2=5; 1=6")
+table(Georgia2009$important_trad)
+
+#trust in Police
+table(Georgia2009$V136)
+Georgia2009$trust_police<-Recode(Georgia2009$V136, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$trust_police)
+
+#Trust in Government 
+table(Georgia2009$V138)
+Georgia2009$trust_gov<-Recode(Georgia2009$V138, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$trust_gov)
+
+#Trust in Court
+table(Georgia2009$V137)
+Georgia2009$trust_court<-Recode(Georgia2009$V137, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$trust_court)
+
+#Trust in Parliament
+table(Georgia2009$V140)
+Georgia2009$trust_par<-Recode(Georgia2009$V140, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2009$trust_par)
+
+#Gender
+table(Georgia2009$V235)
+Georgia2009$gender<-Georgia2009$V235
+
+#Age
+table(Georgia2009$V237)
+Georgia2009$age<-Georgia2009$V237
+
+#Urban
+table(Georgia2009$V255)
+Georgia2009$urban<-Georgia2009$V255
+
+#Prayer
+table(Georgia2009$V193)
+Georgia2009$pray<-Recode(Georgia2009$V193, "2=0")
+```
+
+
+# Variables:Georgia 2014
+```{r}
+## DV
+
+#trust in religious organizations 
+table(Georgia2014$V108)
+Georgia2014$rel_trust<-Recode(Georgia2014$V108, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2014$rel_trust)
+
+## IVs 
+
+#Being part of nation 
+table(Georgia2014$V214)
+Georgia2014$part_nation<-Recode(Georgia2014$V214, "1=3; 2=2; 3=1;")
+table(Georgia2014$part_nation)
+
+#Proud of national identity
+is.na(Georgia2014$V211) <- which(Georgia2014$V211 ==5)
+Georgia2014$proud_nation<-Recode(Georgia2014$V211, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2014$proud_nation)
+
+
+## CONTROLS 
+
+#importance of religion in life 
+table(Georgia2014$V9)
+Georgia2014$importance_rel<-Recode(Georgia2014$V9, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2014$importance_rel)
+
+#Interpersonal trust 
+table(Georgia2014$V56)
+Georgia2014$inter_trust<-Georgia2014$V56
+
+
+#Membership to religious organizations 
+table(Georgia2014$V144)
+Georgia2014$rel_member<-Recode(Georgia2014$V144, "1e+07=0;2e+07=0;30100000=1;30107000=0;5e+07=0;80213304=0;80400035=0;90600000=0;100000020=0")
+table(Georgia2014$rel_member)
+
+
+
+#Income level
+table(Georgia2014$V239)
+Georgia2014$income<-Georgia2014$V239
+
+
+#education level
+table(Georgia2014$V248)
+Georgia2014$educ<-Recode(Georgia2014$V248, "2=1; 3=2; 4=3; 5=4; 6=5; 7=6; 8=7; 9=8")
+table(Georgia2014$educ)
+
+#religiosity
+table(Georgia2014$V145)
+Georgia2014$religiosity<-Recode(Georgia2014$V145, "7=1; 6=2; 5=3; 4=4; 3=5; 2=6; 1=7")
+table(Georgia2014$religiosity)
+
+
+#importance of traditions
+table(Georgia2014$V79)
+Georgia2014$important_trad<-Recode(Georgia2014$V79, "6=1; 5=2; 4=3; 3=4; 2=5; 1=6")
+table(Georgia2014$important_trad)
+
+#trust in Police
+table(Georgia2014$V113)
+Georgia2014$trust_police<-Recode(Georgia2014$V113, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2014$trust_police)
+
+#Trust in Government 
+table(Georgia2014$V115)
+Georgia2014$trust_gov<-Recode(Georgia2014$V115, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2014$trust_gov)
+
+#Trust in Court
+table(Georgia2014$V114)
+Georgia2014$trust_court<-Recode(Georgia2014$V114, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2014$trust_court)
+
+#Trust in Parliament
+table(Georgia2014$V117)
+Georgia2014$trust_par<-Recode(Georgia2014$V117, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2014$trust_par)
+
+#Gender
+table(Georgia2014$V240)
+Georgia2014$gender<-Georgia2014$V240
+
+#Age
+table(Georgia2014$V242)
+Georgia2014$age<-Georgia2014$V242
+
+#Urban
+Georgia2014$urban<-Recode(Georgia2014$V253_CS,"268012=0; 268005=1; 268011=1")
+table(Georgia2014$urban)
+
+#Praying
+table(Georgia2014$V146)
+Georgia2014$pray<-Recode(Georgia2014$V146, "1=8; 2=7;3=6;4=5;5=4;6=3;7=2;8=1")
+```
+
+# Variables Georgia 2018
+```{r}
+## DV
+
+#trust in religious organizations: -2:no answer, -1:do not know. 
+table(Georgia2018$E069_01)
+is.na(Georgia2018$E069_01) <- which(Georgia2018$E069_01 ==-1)
+is.na(Georgia2018$E069_01) <- which(Georgia2018$E069_01 ==-2)
+Georgia2018$rel_trust<-Recode(Georgia2018$E069_01, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2018$rel_trust)
+
+## IV
+
+#Proud of national identity; -3:not applicable, -1: do not know
+table(Georgia2018$G006)
+is.na(Georgia2018$G006) <- which(Georgia2018$G006 ==-1)
+is.na(Georgia2018$G006) <- which(Georgia2018$G006 ==-3)
+Georgia2018$proud_nation<-Recode(Georgia2018$G006, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2018$proud_nation)
+
+
+## CONTROLS 
+
+#importance of religion in life.-2:no answer, -1:do not know.   
+table(Georgia2018$A006)
+is.na(Georgia2018$A006) <- which(Georgia2018$A006 ==-1)
+is.na(Georgia2018$A006) <- which(Georgia2018$A006 ==-2)
+Georgia2018$importance_rel<-Recode(Georgia2018$A006, "1=4; 2=3; 3=2; 4=1")
+table(Georgia2018$importance_rel)
+
+#Interpersonal trust. 1: Most people can be trusted, 2: Can´t be too careful 
+table(Georgia2018$A165)
+is.na(Georgia2018$A165) <- which(Georgia2018$A165 ==-1)
+is.na(Georgia2018$A165) <- which(Georgia2018$A165 ==-2)
+Georgia2018$inter_trust<-Recode(Georgia2018$A165, "2=0")
+table(Georgia2018$inter_trust)
+
+#Membership to religious organizations 
+table(Georgia2018$F025)
+is.na(Georgia2018$F025) <- which(Georgia2018$F025 ==-1)
+is.na(Georgia2018$F025) <- which(Georgia2018$F025 ==-2)
+Georgia2018$rel_member<-Recode(Georgia2018$F025, "0=0;1=0;2=0; 3=1; 5=0;9=0")
+table(Georgia2018$rel_member)
+
+#Income level
+table(Georgia2018$X047E_EVS5)
+is.na(Georgia2018$X047E_EVS5) <- which(Georgia2018$X047E_EVS5 ==-1)
+is.na(Georgia2018$X047E_EVS5) <- which(Georgia2018$X047E_EVS5 ==-2)
+Georgia2018$income<-Georgia2018$X047E_EVS5
+table(Georgia2018$income)
+
+#education level
+table(Georgia2018$X025A_01)
+is.na(Georgia2018$X025A_01) <- which(Georgia2018$X025A_01==-2)
+Georgia2018$educ<-Georgia2018$X025A_01
+table(Georgia2018$educ)
+
+#religiosity: attending religious services 
+table(Georgia2018$F028)
+is.na(Georgia2018$F028) <- which(Georgia2018$F028 ==-1)
+Georgia2018$religiosity<-Recode(Georgia2018$F028, "8=1; 7=2; 6=3; 5=4; 4=5; 3=6; 2=7; 1=8")
+table(Georgia2018$religiosity)
+
+#trust in Police
+table(Georgia2018$E069_06)
+is.na(Georgia2018$E069_06) <- which(Georgia2018$E069_06 ==-1)
+is.na(Georgia2018$E069_06) <- which(Georgia2018$E069_06 ==-2)
+Georgia2018$trust_police<-Recode(Georgia2018$E069_06, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2018$trust_police)
+
+#Trust in Government 
+table(Georgia2018$E069_11)
+is.na(Georgia2018$E069_11) <- which(Georgia2018$E069_11 ==-1)
+is.na(Georgia2018$E069_11) <- which(Georgia2018$E069_11 ==-2)
+Georgia2018$trust_gov<-Recode(Georgia2018$E069_11, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2018$trust_gov)
+
+#Trust in Court
+table(Georgia2018$E069_17)
+is.na(Georgia2018$E069_17) <- which(Georgia2018$E069_17 ==-1)
+is.na(Georgia2018$E069_17) <- which(Georgia2018$E069_17 ==-2)
+Georgia2018$trust_court<-Recode(Georgia2018$E069_17, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2018$trust_court)
+
+#Trust in Parliament
+table(Georgia2018$E069_07)
+is.na(Georgia2018$E069_07) <- which(Georgia2018$E069_07 ==-1)
+is.na(Georgia2018$E069_07) <- which(Georgia2018$E069_07 ==-2)
+Georgia2018$trust_par<-Recode(Georgia2018$E069_07, "4=1; 3=2; 2=3; 1=4")
+table(Georgia2018$trust_par)
+
+#Gender
+table(Georgia2018$X001)
+Georgia2018$gender<-Georgia2018$X001
+
+#Age
+table(Georgia2018$X003)
+Georgia2018$age<-Georgia2018$X003
+
+#Urban
+table(Georgia2018$size_5c)
+Georgia2018$urban<-Georgia2018$size_5c
+
+#Praying
+table(Georgia2018$F066_EVS5)
+is.na(Georgia2018$F066_EVS5) <- which(Georgia2018$F066_EVS5==-1)
+is.na(Georgia2018$F066_EVS5) <- which(Georgia2018$F066_EVS5==-2)
+Georgia2018$pray<-Recode(Georgia2018$F066_EVS5, "1=7;2=6;3=5;4=4;5=3;6=2;7=1")
+table(Georgia2018$pray)
+```
+
+
+# Variables:Armenia 2011
+```{r}
+## DV
+
+#trust in religious organizations 
+table(Armenia2011$V108)
+Armenia2011$rel_trust<-Recode(Armenia2011$V108, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2011$rel_trust)
+
+## IVs 
+
+#Proud of national identity
+table(Armenia2011$V211)
+is.na(Armenia2011$V211) <- which(Armenia2011$V211==5)
+Armenia2011$proud_nation<-Recode(Armenia2011$V211, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2011$proud_nation)
+
+#Part of Nation
+table(Armenia2011$V214)
+Armenia2011$part_nation<-Recode(Armenia2011$V214, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2011$part_nation)
+
+
+
+## CONTROLS 
+
+#importance of religion in life 
+table(Armenia2011$V9)
+Armenia2011$importance_rel<-Recode(Armenia2011$V9, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2011$importance_rel)
+
+#Interpersonal trust 
+table(Armenia2011$V24)
+Armenia2011$inter_trust<-Recode(Armenia2011$V24, "2=0")
+
+#Membership to religious organizations 
+table(Armenia2011$V144)
+Armenia2011$rel_member<-Recode(Armenia2011$V144, "1e+07=0; 2e+07=0; 10100000=0; 4e+07=0; 3e+07=0; 7e+07=0; 30202001=1;30107000=0;30100000=0;90800000=0;  5e+07=0; 80213304=0; 80400035=0; 90600000=0; 100000020=0; 9e+07=0")
+table(Armenia2011$rel_member)
+
+#Income level
+table(Armenia2011$V239)
+Armenia2011$income<-Armenia2011$V239
+
+#education level
+table(Armenia2011$V248)
+Armenia2011$educ<-Armenia2011$V248
+table(Armenia2011$educ)
+
+#religiosity: attending religious services 
+table(Armenia2011$V145)
+Armenia2011$religiosity<-Recode(Armenia2011$V145, "7=1; 6=2; 5=3; 4=4; 3=5; 2=6; 1=7")
+table(Armenia2011$religiosity)
+
+#importance of traditions
+table(Armenia2011$V79)
+Armenia2011$important_trad<-Recode(Armenia2011$V79, "6=1; 5=2; 4=3; 3=4; 2=5; 1=6")
+table(Armenia2011$important_trad)
+
+#trust in Police
+table(Armenia2011$V113)
+Armenia2011$trust_police<-Recode(Armenia2011$V113, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2011$trust_police)
+
+#Trust in Government 
+table(Armenia2011$V115)
+Armenia2011$trust_gov<-Recode(Armenia2011$V115, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2011$trust_gov)
+
+#Trust in Court
+table(Armenia2011$V114)
+Armenia2011$trust_court<-Recode(Armenia2011$V114, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2011$trust_court)
+
+#Trust in Parliament
+table(Armenia2011$V117)
+Armenia2011$trust_par<-Recode(Armenia2011$V117, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2011$trust_par)
+
+
+#Gender
+table(Armenia2011$V240)
+Armenia2011$gender<-Armenia2011$V240
+
+#Age
+table(Armenia2011$V242)
+Armenia2011$age<-Armenia2011$V242
+
+#Urban: town size in rising
+table(Armenia2011$V253)
+Armenia2011$urban<-Armenia2011$V253
+
+#Praying
+table(Armenia2011$V146)
+Armenia2011$pray<-Recode(Armenia2011$V146, "1=8; 2=7;3=6;4=5;5=4;6=3;7=2;8=1")
+```
+
+
+# Variables: Armenia 2018
+```{r}
+## DV
+
+#trust in religious organizations: -2:no answer, -1:do not know. 
+table(Armenia2018$E069_01)
+Armenia2018$rel_trust<-Recode(Armenia2018$E069_01, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2018$rel_trust)
+
+## IV
+
+#Proud of national identity; -3:not applicable, -1: do not know
+table(Armenia2018$G006)
+Armenia2018$proud_nation<-Recode(Armenia2018$G006, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2018$proud_nation)
+
+
+## CONTROLS 
+
+#importance of religion in life.-2:no answer, -1:do not know.   
+table(Armenia2018$A006)
+Armenia2018$importance_rel<-Recode(Armenia2018$A006, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2018$importance_rel)
+
+#Interpersonal trust. 1: Most people can be trusted, 2: Can´t be too careful 
+table(Armenia2018$A165)
+Armenia2018$inter_trust<-Recode(Armenia2018$A165, "2=0")
+table(Armenia2018$inter_trust)
+
+#Membership to religious organizations 
+table(Armenia2018$F025)
+Armenia2018$rel_member<-Recode(Armenia2018$F025, "0=0;1=0;2=0; 3=1; 5=0;9=0")
+table(Armenia2018$rel_member)
+
+#Income level
+table(Armenia2018$X047_WVS7)
+Armenia2018$income<-Armenia2018$X047_WVS7
+table(Armenia2018$income)
+
+#education level
+table(Armenia2018$X025A_01)
+Armenia2018$educ<-Armenia2018$X025A_01
+table(Armenia2018$educ)
+
+#religiosity: attending religious services 
+table(Armenia2018$F028)
+Armenia2018$religiosity<-Recode(Armenia2018$F028, "8=1; 7=2; 6=3; 5=4; 4=5; 3=6; 2=7; 1=8")
+table(Armenia2018$religiosity)
+
+
+#trust in Police
+table(Armenia2018$E069_06)
+Armenia2018$trust_police<-Recode(Armenia2018$E069_06, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2018$trust_police)
+
+#Trust in Government 
+table(Armenia2018$E069_11)
+Armenia2018$trust_gov<-Recode(Armenia2018$E069_11, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2018$trust_gov)
+
+#Trust in Court
+table(Armenia2018$E069_17)
+Armenia2018$trust_court<-Recode(Armenia2018$E069_17, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2018$trust_court)
+
+#Trust in Parliament
+table(Armenia2018$E069_07)
+Armenia2018$trust_par<-Recode(Armenia2018$E069_07, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2018$trust_par)
+
+#Gender
+table(Armenia2018$X001)
+Armenia2018$gender<-Armenia2018$X001
+
+#Age
+table(Armenia2018$X003)
+Armenia2018$age<-Armenia2018$X003
+
+#Urban
+table(Armenia2018$size_5c)
+Armenia2018$urban<-Armenia2018$size_5c
+
+#Praying: Different variables from WVS-EVS. If variables ends with evs, it should be used for Armenia. 
+table(Armenia2018$F028B_WVS7)
+Armenia2018$pray<-Recode(Armenia2018$F028B_WVS7, "1=8;2=7;3=6;4=5;5=4;6=3;7=2; 8=1")
+table(Armenia2018$pray)
+```
+
+
+# Variables:Armenia 2021
+```{r}
+## DV
+
+#trust in religious organizations 
+table(Armenia2021$Q64)
+Armenia2021$rel_trust<-Recode(Armenia2021$Q64, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2021$rel_trust)
+
+## IVs 
+
+#Proud of national identity
+is.na(Armenia2021$Q254) <- which(Armenia2021$Q254==5)
+Armenia2021$proud_nation<-Recode(Armenia2021$Q254, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2021$proud_nation)
+
+
+
+## CONTROLS 
+
+#importance of religion in life 
+table(Armenia2021$Q6)
+Armenia2021$importance_rel<-Recode(Armenia2021$Q6, "1=4; 2=3; 3=2; 4=1")
+table(Armenia2021$importance_rel)
+
+#Interpersonal trust 
+table(Armenia2021$Q57)
+Armenia2021$inter_trust<-Recode(Armenia2021$Q57, "2=0")
+
+#Membership to religious organizations 
+table(Armenia2021$Q289CS9)
+Armenia2021$rel_member<-Recode(Armenia2021$Q289CS9, "1e+07=0;2e+07=0;10100000=0; 3e+07=0; 30202001=1;30107000=0;5e+07=0;80213304=0;80400035=0;90600000=0;100000020=0; 9e+07=0")
+table(Armenia2021$rel_member)
+
+#Income level
+table(Armenia2021$Q288)
+Armenia2021$income<-Armenia2021$Q288
+
+#education level
+table(Armenia2021$Q275)
+Armenia2021$educ<-Armenia2021$Q275
+table(Armenia2021$educ)
+
+#religiosity: attending religious services 
+table(Armenia2021$Q171)
+Armenia2021$religiosity<-Recode(Armenia2021$Q171, "7=1; 6=2; 5=3; 4=4; 3=5; 2=6; 1=7")
+table(Armenia2021$religiosity)
+
+#importance of traditions
+table(Armenia2021$AM_QAM5_4)
+is.na(Armenia2021$AM_QAM5_4) <- which(Armenia2021$AM_QAM5_4 ==-1)
+is.na(Armenia2021$AM_QAM5_4) <- which(Armenia2021$AM_QAM5_4 ==-2)
+Armenia2021$important_trad<-Armenia2021$AM_QAM5_4
+table(Armenia2021$important_trad)
+
+#trust in Police
+table(Armenia2021$Q69)
+Armenia2021$trust_police<-Recode(Armenia2021$Q69, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2021$trust_police)
+
+#Trust in Government 
+table(Armenia2021$Q71)
+Armenia2021$trust_gov<-Recode(Armenia2021$Q71, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2021$trust_gov)
+
+#Trust in Court
+table(Armenia2021$Q70)
+Armenia2021$trust_court<-Recode(Armenia2021$Q70, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2021$trust_court)
+
+#Trust in Parliament
+table(Armenia2021$Q73)
+Armenia2021$trust_par<-Recode(Armenia2021$Q73, "4=1; 3=2; 2=3; 1=4")
+table(Armenia2021$trust_par)
+
+#Gender
+table(Armenia2021$Q260)
+Armenia2021$gender<-Armenia2021$Q260
+
+#Age
+table(Armenia2021$Q262)
+Armenia2021$age<-Armenia2021$Q262
+
+#Urban
+table(Armenia2021$H_URBRURAL)
+Armenia2021$urban<-Recode(Armenia2021$H_URBRURAL, "2=0")
+
+#Praying
+table(Armenia2021$Q172)
+Armenia2021$pray<-Recode(Armenia2021$Q172, "1=8; 2=7;3=6;4=5;5=4;6=3;7=2;8=1")
+```
+
+# Descriptive Statsitics: Georgia 2014
+```{r}
+
+ggplot(Georgia2014, aes(x = rel_trust)) +
+    geom_bar(fill = "steelblue", color = "black", width = 0.7) +
+    theme_bw(base_size = 15) +
+    theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, color = "black", size = 12),
+        axis.text.y = element_text(color = "black", size = 12),
+        axis.title.x = element_text(color = "black", size = 14, face = "bold"),
+        axis.title.y = element_text(color = "black", size = 14, face = "bold"),
+        plot.title = element_text(hjust = 0.5, color = "black", size = 16, face = "bold")
+    ) +
+    ggtitle("Trust in Religious Organizations in Georgia (WVS 2014)") +
+    labs(y = "Frequency", x = "Trust in Religious Organizations")
+
+```
+
+# Descriptive Statsitics: Georgia 2018
+```{r}
+dv_geo2018<-Georgia2018
+dv_geo2018$rel_trust<-as.numeric(dv_geo2018$rel_trust)
+dv_geo2018$rel_trust<-dplyr::recode_factor(dv_geo2018$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+ggplot(dv_geo2018, aes(x = `rel_trust`)) +
+        geom_bar()+
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Trust in Georgian Orthodox Church, WVS/EVS Georgia 2018") +labs(y="Number of People", x = "")
+```
+
+# Descriptive Statsitics: Armenia
+```{r}
+dv_arm2021<-Armenia2021
+dv_arm2021$rel_trust<-as.numeric(dv_arm2021$rel_trust)
+dv_arm2021$rel_trust<-dplyr::recode_factor(dv_arm2021$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+ggplot(dv_arm2021, aes(x = `rel_trust`)) +
+        geom_bar()+
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Trust in Armenian Apostolic Church, WVS Armenia 2021") +labs(y="Number of People", x = "")
+```
+
+# Models: Georgia 2009, 2014,2018
+```{r}
+#2009
+m1<-polr(as.factor(rel_trust)~proud_nation, data=Georgia2009, Hess = TRUE)
+m2<-polr(as.factor(rel_trust)~part_nation, data=Georgia2009, Hess = TRUE)
+m3<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age, data=Georgia2009, Hess = TRUE)
+m4<-polr(as.factor(rel_trust)~part_nation+religiosity+inter_trust++trust_police+trust_gov+trust_court+income+educ+gender+age, data=Georgia2009, Hess = TRUE)
+
+
+#2014
+m5<-polr(as.factor(rel_trust)~proud_nation, data=Georgia2014, Hess = TRUE)
+m6<-polr(as.factor(rel_trust)~part_nation, data=Georgia2014, Hess = TRUE)
+m7<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Georgia2014, Hess = TRUE)
+m8<-polr(as.factor(rel_trust)~part_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Georgia2014, Hess = TRUE)
+
+
+#2018
+m9<-polr(as.factor(rel_trust)~proud_nation, data=Georgia2018, Hess = TRUE)
+m10<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Georgia2018, Hess = TRUE)
+
+
+
+m1$AIC <- AIC(m1)
+m2$AIC <- AIC(m2)
+m3$AIC <- AIC(m3)
+m4$AIC <- AIC(m4)
+m5$AIC <- AIC(m5)
+m6$AIC <- AIC(m6)
+m7$AIC <- AIC(m7)
+m8$AIC <- AIC(m8)
+m9$AIC <- AIC(m9)
+m10$AIC <- AIC(m10)
+
+
+m1$BIC<-BIC(m1)
+m2$BIC<-BIC(m2)
+m3$BIC<-BIC(m3)
+m4$BIC<-BIC(m4)
+m5$BIC<-BIC(m5)
+m6$BIC<-BIC(m6)
+m7$BIC<-BIC(m7)
+m8$BIC<-BIC(m8)
+m9$BIC<-BIC(m9)
+m10$BIC<-BIC(m10)
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, ord.intercepts=T, dep.var.labels=c("Trust in Georgian Orthodox Church"), covariate.labels=c("Being Proud of Nationality", "Being Part of Nation", "Religiosity", "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Male(baseline:Female)", "Age", "Urban(baseline:Rural)"), type="text")
+```
+
+# Models: Armenia 2011, 2018, 2021
+```{r}
+#2011
+m11<-polr(as.factor(rel_trust)~proud_nation, data=Armenia2011, Hess = TRUE)
+m12<-polr(as.factor(rel_trust)~part_nation, data=Armenia2011, Hess = TRUE)
+m13<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Armenia2011, Hess = TRUE)
+m14<-polr(as.factor(rel_trust)~part_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Armenia2011, Hess = TRUE)
+
+#2018
+m15<-polr(as.factor(rel_trust)~proud_nation, data=Armenia2018, Hess = TRUE)
+m16<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Armenia2018, Hess = TRUE)
+
+#2021
+m17<-polr(as.factor(rel_trust)~proud_nation, data=Armenia2021, Hess = TRUE)
+m18<-polr(as.factor(rel_trust)~proud_nation+religiosity+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Armenia2021, Hess = TRUE)
+
+
+m11$AIC <- AIC(m11)
+m12$AIC <- AIC(m12)
+m13$AIC <- AIC(m13)
+m14$AIC <- AIC(m14)
+m15$AIC <- AIC(m15)
+m16$AIC <- AIC(m16)
+m17$AIC <- AIC(m17)
+m18$AIC <- AIC(m18)
+
+
+m11$BIC <- BIC(m11)
+m12$BIC <- BIC(m12)
+m13$BIC <- BIC(m13)
+m14$BIC <- BIC(m14)
+m15$BIC <- BIC(m15)
+m16$BIC <- BIC(m16)
+m17$BIC <- BIC(m17)
+m18$BIC <- BIC(m18)
+
+stargazer(m11, m12, m13, m14, m15, m16, m17, m18, ord.intercepts=T, dep.var.labels=c("Trust in Armenian Apostolic Church"), covariate.labels=c("Being Proud of Nationality", "Being Part of Nation", "Religiosity", "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Male(baseline:Female)", "Age", "Urban(baseline:Rural)"), type="text")
+```
+
+
+# Predicted Probabilities: Georgia 2009
+```{r}
+table(Georgia2009$rel_trust)
+table(Georgia2009$proud_nation)
+table(Georgia2009$part_nation)
+table(Georgia2009$religiosity)
+table(Georgia2009$inter_trust)
+table(Georgia2009$trust_police)
+table(Georgia2009$trust_gov)
+table(Georgia2009$trust_court)
+table(Georgia2009$income)
+table(Georgia2009$educ)
+table(Georgia2009$gender)
+table(Georgia2009$age)
+table(Georgia2009$urban)
+
+
+Geo2009<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(seq(from = 1, to =10, length.out = 100), 1),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =1, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =91, length.out = 100), 1),
+  urban= rep(seq(from = 1, to =8, length.out = 100), 1))
+
+Geo2009<- cbind(Geo2009, predict(m3,  Geo2009, type = "probs"))
+Geor2009<- melt(Geo2009, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Geor2009$rel_trust<-dplyr::recode_factor(Geor2009$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_Geo2009<-ggplot(Geor2009, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Georgian Orthodox Church", colour="Trust in Georgian Orthodox Church")
+Figure_Geo2009
+
+
+Geo_2009<- data.frame(
+  part_nation= rep(seq(from = 1, to = 4, length.out =100), 4),
+  religiosity= rep(seq(from = 1, to =7, length.out = 100), 4),
+  inter_trust= rep(seq(from = 1, to =10, length.out = 100), 4),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 4),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 4),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 4),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 4),
+  educ= rep(seq(from =1, to =8, length.out = 100), 4),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =91, length.out = 100), 4),
+  urban= rep(seq(from = 1, to =8, length.out = 100), 4))
+
+Geo_2009<- cbind(Geo_2009, predict(m4,  Geo_2009, type = "probs"))
+Geor_2009<- melt(Geo_2009, id.vars = c("part_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Geor_2009$rel_trust<-dplyr::recode_factor(Geor_2009$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_Geo_2009<-ggplot(Geor_2009, aes(x=part_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Part of Nation", y="Probability of Trust in Georgian Orthodox Church", colour="Trust in Religious Organizations")
+Figure_Geo_2009
+```
+
+
+# Predicted Probabilities: Georgia 2014
+```{r}
+table(Georgia2014$rel_trust)
+table(Georgia2014$proud_nation)
+table(Georgia2014$part_nation)
+table(Georgia2014$religiosity)
+table(Georgia2014$inter_trust)
+table(Georgia2014$trust_police)
+table(Georgia2014$trust_gov)
+table(Georgia2014$trust_court)
+table(Georgia2014$income)
+table(Georgia2014$educ)
+table(Georgia2014$gender)
+table(Georgia2014$age)
+table(Georgia2014$urban)
+
+
+Geo2014<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 100), 4),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(seq(from = 1, to =10, length.out = 100), 1),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =1, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =85, length.out = 100), 1),
+  urban= rep(0:1, 200))
+
+Geo2014<- cbind(Geo2014, predict(m7,  Geo2014, type = "probs"))
+Geor2014<- melt(Geo2014, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Geor2014$rel_trust<-dplyr::recode_factor(Geor2014$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_Geo2014<-ggplot(Geor2014, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Georgian Orthodox Church", colour="Trust in Georgian Orthodox Church")
+Figure_Geo2014
+
+
+Geo_2014<- data.frame(
+  part_nation= rep(seq(from = 1, to = 3, length.out = 100), 4),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(seq(from = 1, to =10, length.out = 100), 1),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =1, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =85, length.out = 100), 1),
+  urban= rep(0:1, 200))
+
+Geo_2014<- cbind(Geo_2014, predict(m8,  Geo_2014, type = "probs"))
+Geor_2014<- melt(Geo_2014, id.vars = c("part_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Geor_2014$rel_trust<-dplyr::recode_factor(Geor_2014$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_Geo_2014<-ggplot(Geor_2014, aes(x=part_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Part of Nation", y="Probability of Trust in Georgian Orthodox Church", colour="Trust in Georgian Orthodox Church")
+Figure_Geo_2014
+```
+
+# Predicted Probabilities: Georgia 2018
+```{r}
+table(Georgia2018$rel_trust)
+table(Georgia2018$proud_nation)
+table(Georgia2018$religiosity)
+table(Georgia2018$inter_trust)
+table(Georgia2018$trust_police)
+table(Georgia2018$trust_gov)
+table(Georgia2018$trust_court)
+table(Georgia2018$income)
+table(Georgia2018$educ)
+table(Georgia2018$gender)
+table(Georgia2018$age)
+table(Georgia2018$urban)
+
+
+Geo2018<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 100), 4),
+  religiosity= rep(seq(from = 1, to = 8, length.out = 100), 1),
+  inter_trust= rep(0:1, each = 200),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =0, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =82, length.out = 100), 1),
+  urban= rep(seq(from = 1, to =5, length.out = 100), 1))
+
+Geo2018<- cbind(Geo2018, predict(m10,  Geo2018, type = "probs"))
+Geor2018<- melt(Geo2018, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Geor2018$rel_trust<-dplyr::recode_factor(Geor2018$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_Geo2018<-ggplot(Geor2018, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Georgian Orthodox Church", colour="Trust in Georgian Orthodox Church")
+Figure_Geo2018
+```
+
+# Predicted Probabilities: Armenia 2011
+```{r}
+table(Armenia2011$rel_trust)
+table(Armenia2011$proud_nation)
+table(Armenia2011$part_nation)
+table(Armenia2011$religiosity)
+table(Armenia2011$inter_trust)
+table(Armenia2011$trust_police)
+table(Armenia2011$trust_gov)
+table(Armenia2011$trust_court)
+table(Armenia2011$income)
+table(Armenia2011$educ)
+table(Armenia2011$gender)
+table(Armenia2011$age)
+table(Armenia2011$urban)
+
+Arm2011<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 50), 4),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(0:1, each = 200),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =0, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =85, length.out = 100), 1),
+  urban= rep(seq(from = 1, to =8, length.out = 100), 1))
+
+Arm2011<- cbind(Arm2011, predict(m13,  Arm2011, type = "probs"))
+Armen2011<- melt(Arm2011, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Armen2011$rel_trust<-dplyr::recode_factor(Armen2011$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_arm2011<-ggplot(Armen2011, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Armenian Apostolic Church", colour="Trust in Armenian Apostolic Church")
+Figure_arm2011
+
+Arm_2011<- data.frame(
+  part_nation= rep(seq(from = 1, to = 4, length.out = 50), 4),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(0:1, each = 200),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =1, to =9, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =85, length.out = 100), 1),
+  urban= rep(seq(from = 1, to =8, length.out = 100), 1))
+
+Arm_2011<- cbind(Arm_2011, predict(m14,  Arm_2011, type = "probs"))
+Armen_2011<- melt(Arm_2011, id.vars = c("part_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Armen_2011$rel_trust<-dplyr::recode_factor(Armen_2011$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_arm_2011<-ggplot(Armen_2011, aes(x=part_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Part of Nation", y="Probability of Trust in Armenian Apostolic Church", colour="Armenian Apostolic Church")
+Figure_arm_2011
+```
+
+
+# Predicted Probabilities: Armenia 2018
+```{r}
+table(Armenia2018$rel_trust)
+table(Armenia2018$proud_nation)
+table(Armenia2018$religiosity)
+table(Armenia2018$inter_trust)
+table(Armenia2018$trust_police)
+table(Armenia2018$trust_gov)
+table(Armenia2018$trust_court)
+table(Armenia2018$income)
+table(Armenia2018$educ)
+table(Armenia2018$gender)
+table(Armenia2018$age)
+table(Armenia2018$urban)
+
+Arm2018<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 50), 1),
+  religiosity= rep(seq(from = 1, to = 8, length.out = 100), 1),
+  inter_trust= rep(0:1, each = 200),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =0, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =82, length.out = 100), 1),
+  urban= rep(seq(from = 1, to =5, length.out = 100), 1))
+
+Arm2018<- cbind(Arm2018, predict(m16,  Arm2018, type = "probs"))
+Armen2018<- melt(Arm2018, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Armen2018$rel_trust<-dplyr::recode_factor(Armen2018$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_arm2018<-ggplot(Armen2018, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Armenian Apostolic Church", colour="Trust in Armenian Apostolic Church")
+Figure_arm2018
+```
+
+
+
+# Predicted Probabilities: Armenia 2021
+```{r}
+table(Armenia2021$rel_trust)
+table(Armenia2021$proud_nation)
+table(Armenia2021$religiosity)
+table(Armenia2021$inter_trust)
+table(Armenia2021$trust_police)
+table(Armenia2021$trust_gov)
+table(Armenia2021$trust_court)
+table(Armenia2021$income)
+table(Armenia2021$educ)
+table(Armenia2021$gender)
+table(Armenia2021$age)
+table(Armenia2021$urban)
+
+Arm2021<- data.frame(
+  proud_nation= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  religiosity= rep(seq(from = 1, to = 7, length.out = 100), 1),
+  inter_trust= rep(0:1, each = 200),
+  trust_police= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_gov= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  trust_court= rep(seq(from = 1, to = 4, length.out = 100), 1),
+  income= rep(seq(from = 1, to = 10, length.out = 100), 1),
+  educ= rep(seq(from =0, to =8, length.out = 100), 1),
+  gender= rep(1:2, each = 200),
+  age= rep(seq(from = 18, to =91, length.out = 100), 1),
+  urban= rep(0:1, 200))
+
+Arm2021<- cbind(Arm2021, predict(m18,  Arm2021, type = "probs"))
+Armen2021<- melt(Arm2021, id.vars = c("proud_nation", "religiosity", "inter_trust", "trust_police", "trust_gov", "trust_court", "income", "educ", "gender", "age", "urban"),
+  variable.name = "rel_trust", value.name="Probability")
+Armen2021$rel_trust<-dplyr::recode_factor(Armen2021$rel_trust, '1' = "None at all", '2'= "Not very much", '3' = "Quite a lot",'4' = "Great deal")
+Figure_arm2021<-ggplot(Armen2021, aes(x=proud_nation, y = Probability, colour =rel_trust)) +
+  geom_line()+
+  labs(title="",
+    caption="",
+    x="Being Proud of Nationality", y="Probability of Trust in Armenian Apostolic Church", colour="Trust in Armenian Apostolic Church")
+Figure_arm2021
+```
+
+
+
+
+# Coefficent Plots-Georgia
+```{r}
+mod1<-polr(as.factor(rel_trust)~proud_nation+part_nation+importance_rel+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Georgia2014, Hess = TRUE)
+
+
+coef1 <- summary(mod1)$coef[1:12,1]
+ses1 <- summary(mod1)$coef[1:12,2]
+
+
+ylo1 <- coef1 - 1.96*ses1
+yhi1 <- coef1 + 1.96*ses1
+names1 <- c( "Being Proud of Nation", "Being Part of Nation", "Religiosity: Importance of Religion", "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Gender", "Age", "Urban")
+
+names1 <- factor(names1, levels = rev(c("Being Proud of Nation", "Being Part of Nation", "Religiosity: Importance of Religion", "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Gender", "Age", "Urban")))
+
+dfplot1 <- data.frame(names1, coef1, ylo1, yhi1)
+library(ggplot2)
+p1 <- ggplot(dfplot1, aes(x=names1, y=coef1, ymin=ylo1, ymax=yhi1)) + 
+  geom_pointrange(colour=ifelse(ylo1 < 0 & yhi1 > 0, "grey", "black")) + 
+  theme_bw() + 
+  geom_hline(yintercept = 0, lty=2) +coord_flip() + xlab('') + ylab('')  +
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=15,face="bold"))
+p1 
+```
+
+# Coefficent Plots-Georgia 
+```{r}
+mod2<-polr(as.factor(rel_trust)~proud_nation+importance_rel+inter_trust+trust_police+trust_gov+trust_court+income+educ+gender+age+urban, data=Armenia2021, Hess = TRUE)
+
+coef2 <- summary(mod2)$coef[1:11,1]
+ses2 <- summary(mod2)$coef[1:11,2]
+
+
+ylo2 <- coef2 - 1.96*ses2
+yhi2 <- coef2 + 1.96*ses2
+
+names2 <- c(  "Being Proud of Nation", "Religiosity: Importance of Religion" , "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Gender", "Age", "Urban")
+
+names2 <- factor(names2, levels = rev(c( "Being Proud of Nation", "Religiosity: Importance of Religion", "Interpersonal Trust", "Trust in Police", "Trust in Government", "Trust in Court", "Income", "Education", "Gender", "Age", "Urban")))
+
+dfplot2 <- data.frame(names2, coef2, ylo2, yhi2)
+library(ggplot2)
+p2 <- ggplot(dfplot2, aes(x=names2, y=coef2, ymin=ylo2, ymax=yhi2)) + 
+  geom_pointrange(colour=ifelse(ylo2 < 0 & yhi2 > 0, "grey", "black")) + 
+  theme_bw() + 
+  geom_hline(yintercept = 0, lty=2) +coord_flip() + xlab('') + ylab('')  +
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=15,face="bold"))
+p2 
+```
+
+# Exporting data
+```{r}
+
+## you can use this code to export data in excel format to analyse in different software. 
+library(writexl)
+write_xlsx(x=Georgia2018, path="Georgia2018.xlsx", col_names=TRUE)
+write_xlsx(x=Armenia2021, path="Armenia2021.xlsx", col_names=TRUE)
+```
+
