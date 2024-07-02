@@ -1,1 +1,3 @@
-In this subrepository, I include replication files and data used for my "In defence of the nation: Why do churches receive public trust as high as their secular counterparts?" article published at Nations and Nationalism journal. I use ordered logistic regression to analyse six nationally representative survey data. All you need is import data, install all required packages, and then run all. For questions or to report possible errors, please, contact me at namigaabbasov@gmail.com.  
+In this subrepository, I include replication files and data used for my "In defence of the nation: Why do churches receive public trust as high as their secular counterparts?" article published at Nations and Nationalism journal. 
+I use ordered logistic regression to analyse six nationally representative survey data. All you need is import data, install all required packages, and then run all. 
+For questions or to report possible errors, please, contact me at namigaabbasov@gmail.com.  
