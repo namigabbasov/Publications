@@ -1,1 +1,34 @@
+Description of Replication Files
+
+
+
+Files to run codes
+•	“FPP_small states.Rmd” will produce all graphs and tables illustrated in the paper except Figures 5, Figure 7, and9. 
+•	For Figure 5, “region2013” excel data will be used in Stata.  The do.file for Figure 5 is titled as "Figure 5". 
+•	For Figure 8, the excel data titled "Figure 8" will be used. Figure 8 is graphed in Excel.
+•	Figure 9 is a combination of pie charts. I have uploaded an excel file titled "Figure 9.xlsx" to replicate the figure 9 in the manuscript. All pie charts are given within the "Figure 9.xlsx" file. 
+The data for Figure 9 are from World Bank World Integrated Trade Solution. Meanwhile, a reviewer requested to change the pie charts to dotplot in the last email. 
+I visualized Figure 9 in a dotplot format within the “FPP_small states.Rmd” file.The dataset for the dotplots is "trade_vol.xlsx."
+
+
+Datasets
+•	CB2013_Regional_only_responses_07032014       #Caucasus Barometer Regional 2013
+•	CB_2015_Regional_Only_Responses_140416        #Caucasus Barometer Regional 2015
+•	CB_2017_Regional_Only_Responses_20_11_18     #Caucasus Barometer Regional 2017
+•	cb2019_CB_2019_Regional_25_06_2020         #Caucasus Barometer Regional 2019
+•	EU_2021_Public   #Knowledge of and Attitudes toward the EU in Georgia 2021 (EU Survey) 
+•	NDI_March_2022_NDI_March_2022_8_04_2022_Public #NDI Public Attitudes in Georgia March 2022
+•	region2013.xlsx   #cleaned Caucasus Barometer Regional 2013
+•	trade_vol       #Trade Volume of Armenia (2019), Azerbaijan (1996), and Georgia (2005)
+
+
+
+
+
+Except for the last dataset, which is collected from the World Bank website, all datasets are original datasets directly downloaded from the Caucasus Barometer website (https://caucasusbarometer.org/en/).  
+I kept all original names of data sets as they are downloaded from the Caucasus Barometer website. 
+To ensure data authenticity and transparency, you can also directly download the data sets from the Caucasus Barometer website (https://caucasusbarometer.org/en/) and import them to “FPP_small states.Rmd”.  
+In the beginning of the “FPP_small states.Rmd” file, we have given all codes used to clean data. 
+
+
 
