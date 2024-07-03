@@ -1,0 +1,304 @@
+---
+title: "Participation at Political Protest"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#install.packages("haven")
+#install.packages("car")
+#install.packages("MASS")
+install.packages("stargazer")
+library(car)
+library(haven)
+library(MASS)
+library(stargazer)
+```
+
+
+# Loading Data: WVS Georgia 2009 and 2014
+```{r setup, include=FALSE}
+georgia2009<-read_sav("WV5_Data_Georgia_Spss_v20201117.sav")
+georgia2014<-read_sav("WV6_Data_Georgia_Spss_v20201117.sav")
+```
+
+# Cleaning and recoding dependent variable: WVS Georgia 2009 and 2014 
+```{r}
+##2009: “Now I’d like you to look at this card. I’m going to read out some forms of political action that people can take, and I’d like you to tell me, for each one, whether you have done any of these things, whether you might do it or would never under any circumstances do it: ‘attending peaceful demonstrations’”. The survey question contains three answers: have done (1), might do (2), would never do (3).  (Don’t know)=-1; (Refuse to answer)=-2; 
+table(georgia2009$V98)
+is.na(georgia2009$V98) <- which(georgia2009$V98 ==-1)
+is.na(georgia2009$V98) <- which(georgia2009$V98 ==-2)
+georgia2009$protest<-Recode(georgia2009$V98, "3=1;2=2; 1=3" )
+table(georgia2009$protest)
+
+
+
+##2014: “Now I’d like you to look at this card. I’m going to read out some forms of political action that people can take, and I’d like you to tell me, for each one, whether you have done any of these things, whether you might do it or would never under any circumstances do it: ‘attending peaceful demonstrations’”. The survey question contains three answers: have done (1), might do (2), would never do (3).  (Don’t know)=-1; (Refuse to answer)=-2; 
+table(georgia2014$V87)
+is.na(georgia2014$V87) <- which(georgia2014$V87 ==-1)
+is.na(georgia2014$V87) <- which(georgia2014$V87 ==-2)
+georgia2014$protest <-Recode(georgia2014$V87, "3=1;2=2; 1=3" )
+table(georgia2014$protest)
+```
+
+# Cleaning independent Variables
+```{r}
+##Comittment to Democratic Values(abstract)2009: To measure the commitment to democratic values in the abstract form, the following survey question is used: “How important is it for you to live in a country that is governed democratically? On this scale where 1 means it is ‘not at all important’ and 10 means ‘absolutely important’ what position would you choose?”  (Don’t know)=-1; (Refuse to answer)=-2;
+table(georgia2009$V162)
+is.na(georgia2009$V162) <- which(georgia2009$V162==-1)
+is.na(georgia2009$V162) <- which(georgia2009$V162 ==-2)
+georgia2009$abstractdem <-(georgia2009$V162)
+table(georgia2009$abstractdem)
+
+
+##Comittment to Democratic Values(abstract)2014: To measure the commitment to democratic values in the abstract form, the following survey question is used: “How important is it for you to live in a country that is governed democratically? On this scale where 1 means it is ‘not at all important’ and 10 means ‘absolutely important’ what position would you choose?”  (Don’t know)=-1; (Refuse to answer)=-2;
+table(georgia2014$V140)
+is.na(georgia2014$V140) <- which(georgia2014$V140 ==-1)
+is.na(georgia2014$V140) <- which(georgia2014$V140 ==-2)
+georgia2014$abstractdem <-(georgia2014$V140)
+table(georgia2014$abstractdem)
+
+
+
+##Comittment to Democratic Values(contexual)2009: To measure the commitment to democratic values in relation to other important factors, the following survey question is chosen: “If you had to choose, which one of the things on this card would you say is most important?” This survey question contains four answers: maintaining order in the nation (1), giving people more say in important government decisions (2), fighting rising prices (3), protecting freedom of speech (4), don't know(-1)  
+table(georgia2009$V71)
+is.na(georgia2009$V71) <- which(georgia2009$V71 ==-1)
+georgia2009$concretdem <-Recode(georgia2009$V71, "1=0; 3=0; 2=1; 4=1")
+table(georgia2009$concretdem)
+
+##Comittment to Democratic Values(contexual)2014: To measure the commitment to democratic values in relation to other important factors, the following survey question is chosen: “If you had to choose, which one of the things on this card would you say is most important?” This survey question contains four answers: maintaining order in the nation (1), giving people more say in important government decisions (2), fighting rising prices (3), protecting freedom of speech (4), no answer(-2), don't know(-1)  
+table(georgia2014$V62)
+is.na(georgia2014$V62) <- which(georgia2014$V62 ==-1)
+is.na(georgia2014$V62) <- which(georgia2014$V62 ==-2)
+georgia2014$concretdem <-Recode(georgia2014$V62, "1=0; 3=0; 2=1; 4=1")
+table(georgia2014$concretdem)
+```
+
+# Robustness Check Variables 
+```{r}
+##Tolerance for racial groups (2009): To measure this variable, the following question was used "On this list are various groups of people. Could you please mention any that you would not like to have as neighbors? (Code an answer for each group): People of a different race". It is coded as 1=mentioned, 2= not mentioned. 
+table(georgia2009$V35)
+georgia2009$tolerancerace<-Recode(georgia2009$V35, "1=0; 2=1")
+table(georgia2009$tolerancerace)
+
+##Tolerance for sexual minorities(2009): To measure this variable, the following survey question is used: "On this list are various groups of people. Could you please mention any that you would not like to have as neighbors?(Code an answer for each group): Homosexuals" It is coded as 1=mentioned, 2= not mentioned.
+table(georgia2009$V38)
+georgia2009$tolerancehomo<-Recode(georgia2009$V38, "1=0; 2=1")
+table(georgia2009$tolerancehomo)
+
+
+##Tolerance for racial groups(2014):To measure this variable, the following question is used "On this list are various groups of people. Could you please mention any that you would not like to have as neighbors?: People of a different race" It is coded as 1=mentioned, 2= not mentioned.
+table(georgia2014$V37)
+georgia2014$tolerancerace<-Recode(georgia2014$V37, "1=0; 2=1")
+table(georgia2014$tolerancerace)
+
+##Tolerance for sexual minorities(2014): to measure this variable, the following question is used "On this list are various groups of people. Could you please mention any that you would not like to have as neighbors?: Homosexuals" It is coded as 1=mentioned, 2= not mentioned.
+table(georgia2014$V40)
+georgia2014$tolerancehomo <-Recode(georgia2014$V40, "1=0; 2=1")
+table(georgia2014$tolerancehomo)
+```
+
+# Control Variables
+```{r}
+##Ideology is measured through the following survey question: “In political matters, people talk of ‘the left’ and ‘the right.’ How would you place your views on this scale, generally speaking?” The responses range from the “left” to the “right”(1-10). The responses were coded in a reverse way to intuitively understand the effect of ideology on antigovernment protest;
+
+###2009
+is.na(georgia2009$V114) <- which(georgia2009$V114 ==-1)
+is.na(georgia2009$V114) <- which(georgia2009$V114 ==-2)
+georgia2009$ideology<-Recode(georgia2009$V114, "10=1; 9=2; 8=3; 7=4; 6=5; 5=6; 4=7; 3=8; 2=9; 1=10")
+table(georgia2009$ideology)
+
+###2014
+is.na(georgia2014$V95) <- which(georgia2014$V95 ==-1)
+is.na(georgia2014$V95) <- which(georgia2014$V95 ==-2)
+georgia2014$ideology<-Recode(georgia2014$V95, "10=1; 9=2; 8=3; 7=4; 6=5; 5=6; 4=7; 3=8; 2=9; 1=10")
+table(georgia2014$ideology)
+
+##Dissatisfaction and grievances is measured by using the following question: “Taking all things together, would you say you are very happy (1), rather happy (2), not very happy (3), not at all happy (4)”. The responses to this question are kept as they are to make interpretation intuitive. Thus, the level of dissatisfaction increases from 1 to 4. 
+
+###2009
+is.na(georgia2009$V10) <- which(georgia2009$V10 ==-1)
+is.na(georgia2009$V10) <- which(georgia2009$V10 ==-2)
+georgia2009$dissatisfaction<-georgia2009$V10
+table(georgia2009$dissatisfaction)
+
+
+###2014
+is.na(georgia2014$V10) <- which(georgia2014$V10 ==-1)
+georgia2014$dissatisfaction<-georgia2014$V10
+table(georgia2014$dissatisfaction)
+
+
+##education level is measured by using the following question: “What is the highest educational level that you have attained?” This question has eight responses: incomplete primary school(2), complete primary school(3), incomplete secondary school: technical/ vocational type(4), complete secondary school: technical/ vocational type(5), incomplete secondary school: university-preparatory type(6), complete secondary school: university-preparatory type(7), some university-level education, without degree(8), university - level education, with degree(9); Hence, education level increases from 2 to 9. It is recoded from 1-8(education in rising direction) 
+
+###2009
+table(georgia2009$V238)
+georgia2009$education<-Recode(georgia2009$V238, "2=1; 3=2; 4=3; 5=4; 6=5; 7=6; 8=7; 9=8")
+table(georgia2009$education)
+
+###2014
+table(georgia2014$V248)
+georgia2014$education<-Recode(georgia2014$V248, "2=1; 3=2; 4=3; 5=4; 6=5; 7=6; 8=7; 9=8")
+table(georgia2014$education)
+
+
+##income level is measured by using the following question: “On this card is an income scale on which 1 indicates the lowest income group and 10 the highest income group in your country. We would like to know in what group your household is. Please, specify the appropriate number, counting all wages, salaries, pensions and other incomes that come in.”; 
+
+###2009
+is.na(georgia2009$V253) <- which(georgia2009$V253 ==-1)
+is.na(georgia2009$V253) <- which(georgia2009$V253 ==-2)
+table(georgia2009$V253)
+georgia2009$income<-georgia2009$V253
+table(georgia2009$income)
+
+###2014
+is.na(georgia2014$V239) <- which(georgia2014$V239 ==-1)
+is.na(georgia2014$V239) <- which(georgia2014$V239==-2)
+table(georgia2014$V239)
+georgia2014$income<-georgia2014$V239
+table(georgia2014$income)
+
+
+##labor union membership is measured by using the following survey question: “Now I am going to read off a list of voluntary organizations. For each organization, could you tell me whether you are an active member, an inactive member or not a member of that type of organization?: Labor Union.” There are five categories of responses to this question: not a member(0), inactive member(1), active member(2), no answer(-2), don't know(-1); The “not a member” category was recoded as “0”, and the other two categories as “1”; others were eliminated. 
+
+###2009
+is.na(georgia2009$V27) <- which(georgia2009$V27 ==-1)
+is.na(georgia2009$V27) <- which(georgia2009$V27 ==-2)
+georgia2009$labunion<-Recode(georgia2009$V27, "2=1")
+table(georgia2009$labunion)
+
+
+###2014
+is.na(georgia2014$V28) <- which(georgia2014$V28 ==-2)
+georgia2014$labunion<-Recode(georgia2014$V28, "2=1")
+table(georgia2014$labunion)
+
+
+##political party membership is measured by using the following survey question: “Now I am going to read off a list of voluntary organizations. For each organization, could you tell me whether you are an active member, an inactive member or not a member of that type of organization?: Political party.” There are three categories of responses to this question: not a member, inactive member, active member. The “not a member” category was coded as “0”, and the other two categories as “1”; 
+
+###2009
+is.na(georgia2009$V28) <- which(georgia2009$V28 ==-1)
+is.na(georgia2009$V28) <- which(georgia2009$V28 ==-2)
+georgia2009$polparty<-Recode(georgia2009$V28, "2=1")
+table(georgia2009$polparty)
+
+
+###2014
+is.na(georgia2014$V29) <- which(georgia2014$V29 ==-2)
+georgia2014$polparty<-Recode(georgia2014$V29, "2=1")
+table(georgia2014$polparty)
+
+
+##gender is measured by the following survey question: “Respondent's gender by observation.”; 
+
+
+###2009
+table(georgia2009$V235)
+georgia2009$sex<-Recode(georgia2009$V235, "1=0; 2=1")
+table(georgia2009$sex)
+
+###2014
+table(georgia2014$V240)
+georgia2014$sex<-Recode(georgia2014$V240, "1=0; 2=1")
+table(georgia2014$sex)
+
+
+
+##age is measured by using the following survey question: “This means you are ____ years old.”
+
+###2009
+table(georgia2009$V237)
+georgia2009$age<-georgia2009$V237
+
+###2014
+table(georgia2014$V242)
+georgia2014$age<-georgia2014$V242
+```
+
+
+# Ordered Regression Models 
+```{r}
+##2009
+m1<-polr(as.factor(protest)~abstractdem+concretdem, data =georgia2009, Hess=TRUE)
+m2<-polr(as.factor(protest)~abstractdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+m3<-polr(as.factor(protest)~concretdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+m4<-polr(as.factor(protest)~dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+m5<-polr(as.factor(protest)~abstractdem+concretdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+m6<-polr(as.factor(protest)~tolerancerace, data =georgia2009, Hess=TRUE)
+m7<-polr(as.factor(protest)~tolerancehomo, data =georgia2009, Hess=TRUE)
+m8<-polr(as.factor(protest)~tolerancerace+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+m9<-polr(as.factor(protest)~tolerancehomo+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2009, Hess=TRUE)
+
+
+##2014
+m10<-polr(as.factor(protest)~abstractdem+concretdem, data =georgia2014, Hess=TRUE)
+m11<-polr(as.factor(protest)~abstractdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+m12<-polr(as.factor(protest)~concretdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+m13<-polr(as.factor(protest)~dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+m14<-polr(as.factor(protest)~abstractdem+concretdem+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+m15<-polr(as.factor(protest)~tolerancerace, data =georgia2014, Hess=TRUE)
+m16<-polr(as.factor(protest)~tolerancehomo, data =georgia2014, Hess=TRUE)
+m17<-polr(as.factor(protest)~tolerancerace+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+m18<-polr(as.factor(protest)~tolerancehomo+dissatisfaction+labunion+polparty+education+age+sex+income+ideology, data =georgia2014, Hess=TRUE)
+```
+
+# Tables 1 and 2
+```{r}
+library(stargazer)
+m1$AIC <- AIC(m1)
+m2$AIC <- AIC(m2)
+m3$AIC <- AIC(m3)
+m4$AIC <- AIC(m4)
+m5$AIC <- AIC(m5)
+m6$AIC <- AIC(m6)
+m7$AIC <- AIC(m7)
+m8$AIC <- AIC(m8)
+m9$AIC <- AIC(m9)
+m10$AIC <- AIC(m10)
+m11$AIC <- AIC(m11)
+m12$AIC <- AIC(m12)
+m13$AIC <- AIC(m13)
+m14$AIC <- AIC(m14)
+m15$AIC <- AIC(m15)
+m16$AIC <- AIC(m16)
+m17$AIC <- AIC(m17)
+m18$AIC <- AIC(m18)
+
+m1$BIC <- BIC(m1)
+m2$BIC <- BIC(m2)
+m3$BIC <- BIC(m3)
+m4$BIC <- BIC(m4)
+m5$BIC <- BIC(m5)
+m6$BIC <- BIC(m6)
+m7$BIC <- BIC(m7)
+m8$BIC <- BIC(m8)
+m9$BIC <- BIC(m9)
+m10$BIC <- BIC(m10)
+m11$BIC <- BIC(m11)
+m12$BIC <- BIC(m12)
+m13$BIC <- BIC(m13)
+m14$BIC <- BIC(m14)
+m15$BIC <- BIC(m15)
+m16$BIC <- BIC(m16)
+m17$BIC <- BIC(m17)
+m18$BIC <- BIC(m18)
+
+table1<-stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, type = "text")
+table2<-stargazer(m10, m11, m12, m13, m14, m15, m16, m17, m18, type = "text")
+```
+
+
+# importing data as stata files to run predicted probabilities in Stata
+```{r}
+library(foreign)
+write.dta(georgia2009, "georgia2009")
+write.dta(georgia2014, "georgia2014")
+```
+
+```{r setup}
+knitr::opts_chunk$set(cache =TRUE)
+```
+
