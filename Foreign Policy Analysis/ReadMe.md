@@ -52,8 +52,7 @@ Below is a list of datasets used in the analysis:
 
 - **Caucasus Barometer Data**  
   Most datasets are original and downloaded directly from the [Caucasus Barometer website](https://caucasusbarometer.org/en/).  
-  The original dataset names were retained to ensure data authenticity and transparency.  
-  You can also download these datasets directly from the website and import them into `FPP_small states.Rmd`.
+  The original dataset names were retained to ensure data authenticity and transparency so that you can download these datasets directly from the website and import them into `FPP_small states.Rmd`.
 
 - **World Bank Data**  
   The dataset `trade_vol.xlsx` was sourced from the World Bank's World Integrated Trade Solution.
