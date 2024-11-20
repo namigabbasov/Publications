@@ -1,7 +1,7 @@
 # **Publications Repository**
 
 ## **Overview**  
-This repository serves as a centralized location for replication files and supplementary materials associated with research papers published in peer-reviewed journals. I move all replication files and other materials to this repository once a research paper from the "Research Projects" repository or just another research paper is published in peer-reviewed journal.
+This repository serves as a centralized location for replication files and supplementary materials associated with research papers published in peer-reviewed journals. I move all replication files and other materials to this repository once a research paper from the "Research Projects" repository or just another research paper is published in a peer-reviewed journal.
 
 ---
 
@@ -23,10 +23,5 @@ Each folder directory contain replication files and supplimentary materials for 
   - `Supplementary Materials`: Additional files (e.g., appendices, documentation).  
 - **Article 2**  
   - Similar structure for other publications.
-
----
-
-## **Work in Progress**  
-Replication files and materials will be added to this repository as new papers are published.  
 
 ---
