@@ -21,7 +21,7 @@ Each folder directory contain replication files and supplimentary materials for 
   - `Data/`: All datasets used in the paper.  
   - `Scripts/`: Code for analysis, modeling, and figure generation.  
   - `Supplementary Materials/`: Additional files (e.g., appendices, documentation).  
-- **Article 2/**  
+- **Article 2**  
   - Similar structure for other publications.
 
 ---
