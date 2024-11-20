@@ -20,9 +20,9 @@ The research employs a combination of advanced statistical methods to analyze th
 - **Generalized Linear Models (GLM)**: Using Gamma distribution to handle skewed outcomes.
 - **Multilevel Modeling**: Accounting for individual- and country-level variations in data.
 
-## Key Contributions
+## Contributions
 
-This project represents a collaborative effort. My contributions include the theory, all methods and quantitative analysis, drafting manuscript, and addressing all revisions. 
+This is a collaborative work. My contributions include the theory, all methods and quantitative analysis, drafting manuscript, and addressing all revisions. 
 
 ## Repository Contents
 
