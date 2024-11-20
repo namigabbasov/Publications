@@ -18,9 +18,9 @@ This repository serves as a centralized location for replication files and suppl
 ## **Repository Structure**  
 Each folder directory contain replication files and supplimentary materials for a single published article. The repository is organized as follows:
 - **Article 1**  
-  - `Data/`: All datasets used in the paper.  
-  - `Scripts/`: Code for analysis, modeling, and figure generation.  
-  - `Supplementary Materials/`: Additional files (e.g., appendices, documentation).  
+  - `Data`: All datasets used in the paper.  
+  - `Scripts`: Code for analysis, modeling, and figure generation.  
+  - `Supplementary Materials`: Additional files (e.g., appendices, documentation).  
 - **Article 2**  
   - Similar structure for other publications.
 
