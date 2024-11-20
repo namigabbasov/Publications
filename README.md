@@ -20,19 +20,19 @@ Each folder in this repository corresponds to a single published article and con
 
 - **Title**  
   - `Data`: Includes all datasets used in the paper, such as survey data, qualitative data, experimental data, or other sources. Each dataset is accompanied by relevant documentation to facilitate reproducibility.  
-  - `Scripts`: Contains code for data preparation, analysis (e.g., regression models, machine learning algorithms), and figure generation.  
+  - `Scripts`: Contains code for data preparation, analysis (e.g., regression models, machine learning algorithms)
   - `Supplementary Materials`: Additional files such as appendices, methodological notes, or extended results.  
 
 ---
 
 ## **Used Data**  
-This repository includes the following types of data across different publications:  
+This repository includes following types of data across different publications:  
 1. **Survey Data**: Nationally representative surveys collected across various countries and years.  
 2. **Qualitative Data**: Historical records, interviews, and case study analyses.  
 3. **Country-Year Data**: Macro-level datasets aggregated by country and year for regression analysis.  
 4. **Experimental Data**: Results from survey and classical experiments.  
 
-Each dataset is accompanied by metadata or documentation for proper use.
+Each dataset is accompanied by metadata or documentation.
 
 ---
 
@@ -45,18 +45,16 @@ The publications in this repository employ a diverse range of methods, including
    - Ordered logistic regression  
    - Other generalized linear models (GLMs)  
 2. **Machine Learning Algorithms**:  
-   - Supervised models for classification and prediction  
+   - Supervised models for classification and regression tasks   
    - Random survival forests and boosting methods for time-to-event data  
 3. **Multilevel Modeling**:  
    - Hierarchical or mixed-effects models to account for nested data structures.  
 4. **Causal Inference Methods**:  
    - Synthetic control methods for counterfactual analysis.  
    - Matching techniques for balancing covariates.  
-   - Inverse Propensity Weighting (IPW) for estimating causal effects.  
+   - Inverse Propensity Weighting (IPW) for estimating causal effects in survival analysis.  
 5. **Mixed-Methods**:  
-   - Combining qualitative and quantitative approaches to provide comprehensive insights.  
-
-Scripts in the `Scripts` folder detail the steps to reproduce these methods.
+   - Combining qualitative and quantitative approaches.  
 
 ---
 
