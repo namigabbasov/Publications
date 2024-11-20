@@ -1,31 +1,45 @@
-# **Replication Files for "In Defence of the Nation"**
+# **Replication Files for "In Defence of Nation"**
 
 ## **Overview**  
 This subrepository contains replication files and data for my article **"In Defence of the Nation: Why Do Churches Receive Public Trust as High as Their Secular Counterparts?"**, published in *Nations and Nationalism* journal.  
 
-The analysis is based on six nationally representative survey datasets and employs **ordered logistic regression** to explore the factors contributing to public trust in churches.
+### **Abstract**  
+Secularisation theory contends that religiosity and trust in religious organisations tend to decline when trust in their secular counterparts increases. However, in countries where religiosity is low, it is puzzling why religious organisations continue to receive public trust comparable to secular institutions.  This study argues that public trust in religious organisations is tied to their historical role in nation-building and national identity construction. Individuals with a strong sense of national identity are more likely to trust religious organisations. Using qualitative and quantitative data on public trust in the Armenian Apostolic Church (AAC) and the Georgian Orthodox Church (GOC), the study demonstrates how the historical role of these institutions in fostering national cohesion and identity during instability cultivates both generational and strategic trust in religious organisations.
+
+---
+
+## **Methodology**  
+The analysis combines qualitative insights with **ordered logistic regression** on six nationally representative survey datasets to examine trust in religious organisations.
 
 ---
 
 ## **How to Reproduce the Results**  
-1. **Import Data**: Load the provided datasets into your environment.  
-2. **Install Required Packages**: Ensure all necessary packages are installed (details in the script).  
-3. **Run the Scripts**: Execute the provided code to replicate the results in the article.
+1. **Import Data**: Load the datasets provided in this subrepository (or use instructions to access external data).  
+2. **Install Required Packages**: Ensure all necessary packages are installed. A list of dependencies is included in scripts.  
+3. **Run Scripts**: Execute the analysis scripts to replicate results presented in the article.
 
 ---
 
 ## **Contents**  
-- **Data**: Survey datasets used in the article (if applicable, or provide instructions to access).  
-- **Scripts**: Code for data preparation, analysis, and visualization.  
-- **Documentation**: Any additional information to assist replication.
+- **Data**: Survey datasets used in the analysis.  
+- **Scripts**: Includes:
+  - Data preparation
+  - Statistical analysis (ordered logistic regression)
+  - Visualization of results
+  - Predictied Probabilities
+- **Documentation**: Additional notes to assist with replication.
+
+---
+
+## **Key Findings**  
+1. **Historical Significance**: Religious organisations play a vital role in national identity construction and cohesion, especially during times of instability.  
+2. **Trust and Identity**: Strong national identity correlates with higher trust in religious organisations.  
+3. **Dual Trust**:
+   - **Generational Trust**: Rooted in the historical role of religious organisations.  
+   - **Strategic Trust**: Based on their ongoing significance in national identity and cohesion.  
 
 ---
 
 ## **Contact**  
 If you have any questions or encounter issues with the replication files, feel free to reach out:  
 **Email**: [namigaabbasov@gmail.com](mailto:namigaabbasov@gmail.com)
-
----
-
-## **License**  
-The materials in this subrepository are provided for academic and educational purposes. Please respect any restrictions related to the data or analysis scripts.
