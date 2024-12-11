@@ -42,20 +42,20 @@ The publications in this repository employ a diverse range of methods, including
    - Linear regression
    - Logistic Regression
    - Multinomial Regression with Bayesian statistics 
-   - Ordered logistic regression  
+   - Ordered logistic regression
+   - Survival analysis 
    - Other generalized linear models (GLMs)  
 2. **Machine Learning Algorithms**:  
    - Supervised models for classification and regression tasks   
-   - Random survival forests and boosting methods for time-to-event data  
+   - Machine learning models tailored for survival analysis 
 3. **Multilevel Modeling**:  
-   - Hierarchical or mixed-effects models to account for nested data structures.  
 4. **Causal Inference Methods**:  
-   - Synthetic control methods for counterfactual analysis.  
-   - Matching techniques for balancing covariates.  
-   - Inverse Propensity Weighting (IPW) for estimating causal effects in survival analysis.  
+   - Synthetic control methods 
+   - Matching techniques 
+   - Inverse Propensity Weighting
+   - Entropy Balancing   
 5. **Mixed-Methods**:  
    - Combining qualitative and quantitative approaches.  
-
 ---
 
 ## **How to Use**  
