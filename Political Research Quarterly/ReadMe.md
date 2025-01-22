@@ -1,13 +1,13 @@
 # Double-Edged Sword: Political Engagement on Social Media and Its Impact on Democracy Support in Authoritarian Regimes
 
-This repository contains the code and analyses for the study **"Double-Edged Sword: Political Engagement on Social Media and Its Impact on Democracy Support in Authoritarian Regimes"** accepted for publication in ***Political Research Quarterly***. The research explores the complex relationship between political engagement on social media and democracy support in authoritarian regimes, utilizing data from the Arab Barometer surveys (waves 1–5 and 7, spanning 2006–2022).
+This repository contains the code and analyses for the article **"Double-Edged Sword: Political Engagement on Social Media and Its Impact on Democracy Support in Authoritarian Regimes"** published by ***Political Research Quarterly***. The research explores the complex relationship between political engagement on social media and democracy support in authoritarian regimes, utilizing data from the Arab Barometer surveys (waves 1–5 and 7, spanning 2006–2022).
 
 ## Project Description
 
 The study examines whether political engagement on social media—such as obtaining political information and expressing political opinions—supports or undermines democracy in authoritarian contexts. The findings reveal a dynamic shift over time:
 
 - **2006–2012**: Political engagement on social media positively correlates with support for democracy.
-- **2013–2022**: A negative correlation emerges, reflecting the growing influence of digital authoritarianism.
+- **2013–2022**: A negative correlation emerges, reflecting a growing influence of digital authoritarianism.
 
 The analysis identifies two mechanisms behind these shifts:
 1. **Self-Censorship**: Fear of repression causes individuals critical of regimes to withhold their views.
@@ -16,19 +16,20 @@ The analysis identifies two mechanisms behind these shifts:
 ## Methodology
 
 The research employs a combination of advanced statistical methods to analyze the relationship between social media engagement and democracy support:
-- **Pooled Regression**: Examining trends across survey waves.
+- **Pooled Regression**: Examining trends across countries.
 - **Generalized Linear Models (GLM)**: Using Gamma distribution to handle skewed outcomes.
 - **Multilevel Modeling**: Accounting for individual- and country-level variations in data.
 
 ## Contributions
 
-This is a collaborative work. My contributions include the theory, all methods and quantitative analysis, drafting manuscript, and addressing all revisions. 
+This is a collaborative work. My contributions include the theory, all methods and data analysis, drafting manuscript, and addressing all revisions. 
 
 ## Repository Contents
 
 - **Data Preparation**: Scripts for cleaning and preparing the Arab Barometer survey data.
 - **Analysis**: Statistical code for pooled regression, GLM, and multilevel modeling.
 - **Results**: Outputs, tables, and visualizations showing key findings.
+- **Scripts**: All data analysis has been conducted in Rstudio with Quarto documents. Code documents(qmd)have been named according to which survey is analysed(e.g.ab7.qmd is the analysis of Arab Barometer wave 7- ab7.sav). ab7 is the primary code file. 
 
 ## Abstract
 
