@@ -1,0 +1,296 @@
+---
+title: "ab3"
+format: html
+editor: visual
+---
+
+```{r}
+# install.packages("haven")
+# install.packages("ggplot2")
+# install.packages("car")
+# install.packages("plm")
+# install.packages("stargazer")
+# install.packages("nnet")
+# install.packages("MASS")
+# install.packages("jtools")
+# install.packages("tidyverse")
+# install.packages("magrittr")
+# install.packages("gridExtra")
+# install.packages("lme4")
+# install.packages("lmerTest")
+# install.packages("interactions")
+
+# Load libraries
+library(haven)
+library(ggplot2)
+library(car)
+library(plm)
+library(stargazer)
+library(nnet)
+library(MASS)
+library(jtools)
+library(tidyverse)
+library(magrittr)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(interactions)
+
+# Set global options
+options(scipen = 100)
+
+```
+
+## Load Data
+
+### AB 3
+
+```{r}
+ab3<-read_sav("ab3.sav")
+ab3$date<-as.Date(ab3$date, format = "%Y-%m-%d")
+ab3$year<- format(ab3$date, "%Y")
+ab3$year<-as.numeric(ab3$year)
+
+ab3$country<-as.factor(ab3$country)
+ab3$cname <- ifelse(ab3$country == "1", "Algeria",
+                      ifelse(ab3$country == "5", "Egypt",
+                             ifelse(ab3$country == "7", "Iraq",
+                                    ifelse(ab3$country == "8", "Jordan",
+                                           ifelse(ab3$country == "9", "Kuwait",
+                                                  ifelse(ab3$country == "10", "Lebanon",
+                                                         ifelse(ab3$country == "11", "Libya",
+                                                                ifelse(ab3$country == "13", "Morocco",
+                                                                  ifelse(ab3$country == "15", "Palestine",
+                                                                      ifelse(ab3$country == "19", "Sudan",
+                                                                         ifelse(ab3$country == "21", "Tunisia",
+                                                                            ifelse(ab3$country == "22", "Yemen",NA
+                                                                                    ))))))))))))
+```
+
+### V-Dem: RoW
+
+```{r}
+regimes<-read_csv("political-regime.csv")
+regimes$cname<-regimes$Entity
+regimes$year<-regimes$Year
+regimes$regime<-regimes$"Political regime"
+regimes<- regimes[, c("year", "cname", "regime")]
+```
+
+### V-Dem Index
+
+```{r}
+vdem<-read_csv("V-Dem-CY-Core-v14.csv")
+vdem$cname<-vdem$country_name
+vdem$cname[vdem$cname == "Palestine/Gaza"] <- "Palestine"       # Replace "Palestine/Gaza" with "Palestine"
+vdem_subset <- vdem[, c("year", "cname", "v2x_polyarchy", "v2x_libdem", "v2x_partipdem", "v2x_delibdem", "v2x_egaldem")]
+```
+
+### Merge
+
+```{r}
+ab3<- merge(ab3, vdem_subset, by = c("cname", "year"), all.x = TRUE)
+ab3<- merge(ab3, regimes, by = c("cname", "year"), all.x = TRUE)
+```
+
+## Variables
+
+```{r}
+### DV -  Support for Democracy 
+ab3$dem<-ifelse(ab3$q5171>5, NA, 5 - as.numeric(ab3$q5171))              ### Is A democratic political system good or bad? 
+ab3$dem_econ<-ifelse(ab3$q5161>5, NA, as.numeric(ab3$q5161))    
+ab3$dem_decisive<-ifelse(ab3$q5162>5, NA, as.numeric(ab3$q5162)) 
+ab3$dem_stablity<-ifelse(ab3$q5163>5, NA, as.numeric(ab3$q5163)) 
+ab3$dem_better<-ifelse(ab3$q5164>5, NA, 5 - as.numeric(ab3$q5164)) 
+ab3$dem_index<-(ab3$dem_econ+ab3$dem_decisive+ab3$dem_stablity)/3       ### Democracy Index 
+ab3$deference<-ifelse(ab3$q216 >4, NA, 5-as.numeric(ab3$q216))          ### agree with gov decisions 
+
+
+
+
+
+### PCA for DV Index 
+
+# Subset the data
+data_for_pca <- ab3[, c("dem_decisive", "dem_econ", "dem_stablity")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for the first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print the proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+
+
+
+## IV - Internet 
+ab3$internet_polinfo<-ifelse(ab3$q4101 %in% c(0, 8, 9), NA, 2-ab3$q4101)
+ab3$internet_polexpress<-ifelse(ab3$q4102 %in% c(0, 8, 9), NA, 2-ab3$q4102)
+ab3$internet_polnews<-ifelse(ab3$q4065 %in% c(0, 8, 9), NA, 6-as.numeric(ab3$q4065))  
+ab3$internet_polnewstrust<-ifelse(ab3$q407 %in% c(99998, 99999 ), NA, 
+                                  ifelse(ab3$q407 ==5, 1,0))  
+ab3$internet_use<-ifelse(ab3$q409 %in% c(0, 8, 9), NA, 6-as.numeric(ab3$q409))  
+
+
+
+
+### controls
+ab3$age <- ifelse(ab3$q1001 %in% c(9999, 0), NA, ab3$q1001)
+ab3$female<-ifelse(ab3$q1002 ==2, 1, 0)
+ab3$educ<-ifelse(ab3$q1003 %in% c(99, 0), NA, as.numeric(ab3$q1003))                                ### education 
+table(ab3$q1003t) # educ in Tunisia. 1=1; 2=2; 3=3; 4=4; 5=6; 6=7; So, here is no "5" in Tunisia
+table(ab3$q1003yem) # 1=1; 2=2; 3=3; 4=4; 5=4; 6=5; 7=6; 8=7; 
+ab3$unemployed<-ifelse(ab3$q1004 %in% c(8, 0), NA, as.numeric(ab3$q1004)-1)
+ab3$pol_inter<- ifelse(ab3$q404 > 4, NA, 5- as.numeric(ab3$q404))                     ### Political Interest
+ab3$gov_trust <- ifelse(ab3$q2011 > 4, NA, 5 - as.numeric(ab3$q2011))                 ### Trust in Gov)
+ab3$inter_trust<-ifelse(ab3$q103 %in% c(8,9,0), NA, 2- as.numeric(ab3$q103))          ### interpersonal trust
+ab3$single<-ifelse(ab3$q1010 == 1,1,0)
+ab3$urban<-ifelse(ab3$q13 ==1, 1, 0)                                                  ### urban
+ab3$gov_satis <-ifelse(ab3$q513 > 10, NA, as.numeric(ab3$q513))                       ### Overall gov satis
+ab3$religious<-ifelse(ab3$q609 %in% c(8,9,0), NA, 4- as.numeric(ab3$q609))
+
+ab3$women_work <- ifelse(ab3$q6012 %in% c(8,9,0), NA, 5-as.numeric(ab3$q6012))
+ab3$women_leader <- ifelse(ab3$q6013 %in% c(8,9,0), NA, as.numeric(ab3$q6013))
+ab3$women_educ <- ifelse(ab3$q6014 %in% c(8,9,0), NA, as.numeric(ab3$q6014))
+ab3$women_index <- (ab3$women_work +ab3$women_leader +ab3$women_educ) / 3                   ### Gender Egalitarianism index
+
+
+
+### interaction variables
+ab3$deference_c<-ab3$deference - mean(ab3$deference, trim = 0, na.rm = TRUE)
+ab3$info_c<-ab3$internet_polinfo - mean(ab3$internet_polinfo, trim = 0, na.rm = TRUE)
+ab3$express_c<-ab3$internet_polexpress - mean(ab3$internet_polexpress, trim = 0, na.rm = TRUE)
+ab3$deference_info<-ab3$deference_c*ab3$info_c
+ab3$deference_express<-ab3$deference_c*ab3$express_c
+
+
+
+### center V-Dem variables 
+ab3$elecdem_c<- ab3$v2x_polyarchy - mean(ab3$v2x_polyarchy, na.rm = TRUE, trim = 0)
+ab3$libdem_c<- ab3$v2x_libdem - mean(ab3$v2x_libdem, na.rm = TRUE, trim = 0)
+ab3$pardem_c<- ab3$v2x_partipdem - mean(ab3$v2x_partipdem, na.rm = TRUE, trim = 0)
+ab3$delibdem_c<- ab3$v2x_delibdem - mean(ab3$v2x_delibdem, na.rm = TRUE, trim = 0)
+ab3$egaldem_c<- ab3$v2x_egaldem - mean(ab3$v2x_egaldem, na.rm = TRUE, trim = 0)
+```
+
+## EDA
+
+```{r}
+### plot variable distribution
+ggplot(ab3, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(title="", 
+       x="Support for Democracy: AB3", 
+       y="Frequency") +
+  theme_minimal()
+```
+
+## Models
+
+```{r}
+pdata3 <- pdata.frame(ab3, index = "cname")  ### getting pooled data 
+pdata3$cname <- as.factor(pdata3$cname)
+pdata3$cname <- relevel(pdata3$cname, ref = "Iraq")
+
+
+## Main models: polinfo and polexpress 
+m1<- plm(dem_index~ internet_polinfo,  data = pdata3, model = "pooling")
+m2<- plm(dem_index~ internet_polinfo+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname+gov_satis+deference,  data = pdata3, model = "pooling")
+m3<- plm(dem_index~ internet_polexpress,  data = pdata3, model = "pooling")
+m4<- plm(dem_index~ internet_polexpress+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname+gov_satis+deference,  data = pdata3, model = "pooling")
+m5<- plm(dem_index~ internet_polnews,  data = pdata3, model = "pooling")
+m6<- plm(dem_index~ internet_polnews+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname+gov_satis+deference,  data = pdata3, model = "pooling")
+m7<- plm(dem_index~ internet_use,  data = pdata3, model = "pooling")
+m8<- plm(dem_index~ internet_use+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname+gov_satis+deference,  data = pdata3, model = "pooling")
+stargazer(m1, m2, m3, m4,  
+          dep.var.labels=c("Support for Democracy"), 
+          covariate.labels=c("Internet Pol Info",  "Employed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Trust in Gov",  "Single", "Urban","Algeria", "Egypt", "Jordan", "Lebanon", "Libya",  "Morocco", 
+                              "Sudan","Palestine", "Satisfaction with Gov", "Deference to Gov",  "Internet Pol Express"), 
+          type="text",
+          omit.stat=c("f", "ser"))  
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, type = "text",
+          
+          omit.stat = c("f", "ser"))
+
+vif(m2)
+vif(m4)
+vif(m6)
+vif(m8)
+
+
+
+
+
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, 
+          dep.var.labels = c("Support for Democracy"), 
+          add.lines = list(c("", "", "", "AB 3", "", "", "", "AB 4")),
+          covariate.labels = c("Internet Pol Info",  "Employed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Trust in Gov",  "Single", "Urban", "Algeria", "Egypt", "Jordan", "Lebanon", "Libya", "Morocco", "Sudan", "Palestine", "Satisfaction with Gov", "Deference to Gov",  "Internet Pol Express"), 
+          type = "text",
+          omit.stat = c("f", "ser")
+          )
+
+
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8,  type = "text")
+```
+
+```{r}
+m1<- polr(as.factor(dem_better)~ internet_polinfo,  data = pdata3, Hess = T)
+m2<- polr(as.factor(dem_better)~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m3<- polr(as.factor(dem_better)~ internet_polexpress,  data = pdata3, Hess = T)
+m4<- polr(as.factor(dem_better)~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3,Hess = T)
+m5<- polr(as.factor(dem_better)~ internet_use,  data = pdata3, Hess = T)
+m6<- polr(as.factor(dem_better)~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m7<- polr(as.factor(dem_better)~ internet_polnews,  data = pdata3, Hess = T)
+m8<- polr(as.factor(dem_better)~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m9<- polr(as.factor(dem_better)~ internet_polnewstrust,  data = pdata3, Hess = T)
+m10<- polr(as.factor(dem_better)~ internet_polnewstrust+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, type = "text")
+
+m1<- polr(as.factor(dem_econ)~ internet_polinfo,  data = pdata3, Hess = T)
+m2<- polr(as.factor(dem_econ)~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m3<- polr(as.factor(dem_econ)~ internet_polexpress,  data = pdata3, Hess = T)
+m4<- polr(as.factor(dem_econ)~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3,Hess = T)
+m5<- polr(as.factor(dem_econ)~ internet_use,  data = pdata3, Hess = T)
+m6<- polr(as.factor(dem_econ)~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m7<- polr(as.factor(dem_econ)~ internet_polnews,  data = pdata3, Hess = T)
+m8<- polr(as.factor(dem_econ)~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m9<- polr(as.factor(dem_econ)~ internet_polnewstrust,  data = pdata3, Hess = T)
+m10<- polr(as.factor(dem_econ)~ internet_polnewstrust+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, type = "text")
+
+m1<- polr(as.factor(dem_stablity)~ internet_polinfo,  data = pdata3, Hess = T)
+m2<- polr(as.factor(dem_stablity)~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m3<- polr(as.factor(dem_stablity)~ internet_polexpress,  data = pdata3, Hess = T)
+m4<- polr(as.factor(dem_stablity)~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3,Hess = T)
+m5<- polr(as.factor(dem_stablity)~ internet_use,  data = pdata3, Hess = T)
+m6<- polr(as.factor(dem_stablity)~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m7<- polr(as.factor(dem_stablity)~ internet_polnews,  data = pdata3, Hess = T)
+m8<- polr(as.factor(dem_stablity)~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m9<- polr(as.factor(dem_stablity)~ internet_polnewstrust,  data = pdata3, Hess = T)
+m10<- polr(as.factor(dem_stablity)~ internet_polnewstrust+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, type = "text")
+
+m1<- polr(as.factor(dem_decisive)~ internet_polinfo,  data = pdata3, Hess = T)
+m2<- polr(as.factor(dem_decisive)~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m3<- polr(as.factor(dem_decisive)~ internet_polexpress,  data = pdata3, Hess = T)
+m4<- polr(as.factor(dem_decisive)~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3,Hess = T)
+m5<- polr(as.factor(dem_decisive)~ internet_use,  data = pdata3, Hess = T)
+m6<- polr(as.factor(dem_decisive)~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m7<- polr(as.factor(dem_decisive)~ internet_polnews,  data = pdata3, Hess = T)
+m8<- polr(as.factor(dem_decisive)~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+m9<- polr(as.factor(dem_decisive)~ internet_polnewstrust,  data = pdata3, Hess = T)
+m10<- polr(as.factor(dem_decisive)~ internet_polnewstrust+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+inter_trust+cname,  data = pdata3, Hess = T)
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, type = "text")
+```

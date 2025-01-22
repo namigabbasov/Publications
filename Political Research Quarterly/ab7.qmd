@@ -1,0 +1,2164 @@
+---
+title: "Arab Barometer 7"
+format: pdf
+editor: visual
+---
+
+```{r}
+# install.packages("haven")
+# install.packages("ggplot2")
+# install.packages("car")
+# install.packages("plm")
+# install.packages("stargazer")
+# install.packages("nnet")
+# install.packages("MASS")
+# install.packages("jtools")
+# install.packages("tidyverse")
+# install.packages("magrittr")
+# install.packages("gridExtra")
+# install.packages("lme4")
+# install.packages("lmerTest")
+# install.packages("interactions")
+
+# Load libraries
+library(haven)
+library(ggplot2)
+library(car)
+library(plm)
+library(stargazer)
+library(nnet)
+library(MASS)
+library(jtools)
+library(tidyverse)
+library(magrittr)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(interactions)
+
+# Set global options
+options(scipen = 100)
+
+```
+
+## Load Data
+
+### AB7
+
+```{r}
+ab7 <- read_sav("ab7.sav")
+ab7$date<-as.Date(ab7$DATE, format = "%Y-%m-%d")
+ab7$year<- format(ab7$date, "%Y")
+ab7$year<-as.numeric(ab7$year)
+
+ab7$COUNTRY<-as.factor(ab7$COUNTRY)
+ab7$cname <- ifelse(ab7$COUNTRY == "1", "Algeria",
+                      ifelse(ab7$COUNTRY == "5", "Egypt",
+                             ifelse(ab7$COUNTRY == "7", "Iraq",
+                                    ifelse(ab7$COUNTRY == "8", "Jordan",
+                                           ifelse(ab7$COUNTRY == "9", "Kuwait",
+                                                  ifelse(ab7$COUNTRY == "10", "Lebanon",
+                                                         ifelse(ab7$COUNTRY == "11", "Libya",
+                                                              ifelse(ab7$COUNTRY == "12", "Mauritania",
+                                                                ifelse(ab7$COUNTRY == "13", "Morocco",
+                                                                       ifelse(ab7$COUNTRY == "15", "Palestine",
+                                                                              ifelse(ab7$COUNTRY == "19", "Sudan",
+                                                                                     ifelse(ab7$COUNTRY == "21", "Tunisia",NA
+                                                                                    ))))))))))))
+```
+
+### V-Dem: RoW
+
+```{r}
+regimes<-read_csv("political-regime.csv")
+regimes$cname<-regimes$Entity
+regimes$year<-regimes$Year
+regimes$regime<-regimes$"Political regime"
+regimes<- regimes[, c("year", "cname", "regime")]
+
+#https://ourworldindata.org/grapher/political-regime
+```
+
+### V-Dem Index
+
+```{r}
+vdem<-read_csv("V-Dem-CY-Core-v14.csv")
+vdem$cname<-vdem$country_name
+vdem$cname[vdem$cname == "Palestine/Gaza"] <- "Palestine"       # Replace "Palestine/Gaza" with "Palestine"
+vdem_subset <- vdem[, c("year", "cname", "v2x_polyarchy", "v2x_libdem", "v2x_partipdem", "v2x_delibdem", "v2x_egaldem")]
+```
+
+### Merge
+
+```{r}
+ab7<- merge(ab7, vdem_subset, by = c("cname", "year"), all.x = TRUE)
+ab7<- merge(ab7, regimes, by = c("cname", "year"), all.x = TRUE)
+```
+
+## Variables
+
+### DV
+
+```{r}
+### re-code support for democracy variables 
+
+ab7$dem<-Recode(ab7$Q516A, "98=NA; 99=NA; 2=1; 1=2")            
+ab7$dem_bi<-Recode(ab7$Q516A, "98=NA; 99=NA; 3=1; 1=NA; 2=0")
+ab7$dem_econ<-ifelse(ab7$Q516_1>5, NA, as.numeric(ab7$Q516_1))    
+ab7$dem_decisive<-ifelse(ab7$Q516_2>5, NA, as.numeric(ab7$Q516_2)) 
+ab7$dem_stablity<-ifelse(ab7$Q516_3>5, NA, as.numeric(ab7$Q516_3)) 
+ab7$dem_better<-ifelse(ab7$Q516_4>5, NA, 5 - as.numeric(ab7$Q516_4)) 
+
+
+### Create Democracy Index based on PCA results 
+ab7$dem_index<-(ab7$dem_decisive+ab7$dem_econ+ab7$dem_stablity)/3         
+
+
+
+### PCA for DV Index 
+
+# Subset the data
+data_for_pca <- ab7[, c("dem_decisive", "dem_econ", "dem_stablity")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print the proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+     
+```
+
+```{r}
+# Create empty list to store results
+results_list <- list()
+
+# Function to perform PCA and return loadings and explained variance
+perform_pca <- function(data, data_name) {
+  # Subset data
+  data_for_pca <- data[, c("dem_decisive", "dem_econ", "dem_stablity")]
+  
+  # Handle missing values by omitting rows with NAs
+  data_for_pca <- na.omit(data_for_pca)
+  
+  # Conduct PCA and scale the data
+  pca_result <- prcomp(data_for_pca, scale. = TRUE)
+  
+  # Extract loadings for the first principal component
+  loadings_pc1 <- pca_result$rotation[,1]
+  
+  # Calculate proportion of variance explained by first principal component
+  explained_variance <- pca_result$sdev^2
+  total_variance <- sum(explained_variance)
+  explained_variance_ratio <- explained_variance / total_variance
+  
+  # Create data frame for results
+  result_df <- data.frame(
+    Dataset = data_name,
+    PC1_Loading_dem_decisive = loadings_pc1[1],
+    PC1_Loading_dem_econ = loadings_pc1[2],
+    PC1_Loading_dem_stability = loadings_pc1[3],
+    PC1_Explained_Variance = explained_variance_ratio[1]
+  )
+  
+  return(result_df)
+}
+
+# List of datasets and their names
+datasets <- list(ab1 = ab1, ab2 = ab2, ab3 = ab3, ab4 = ab4, ab5 = ab5, ab7 = ab7)
+
+# Iterate through each dataset, perform PCA, and store the results
+for (name in names(datasets)) {
+  results_list[[name]] <- perform_pca(datasets[[name]], name)
+}
+
+# Combine all results into a single data frame
+final_results <- do.call(rbind, results_list)
+
+final_results
+
+# Save results to CSV file
+write.csv(final_results, "PCA_loadings_and_variance.csv", row.names = FALSE)
+```
+
+### IVs
+
+```{r}
+## Social Media and Internet Variables 
+ab7$internet_use<- ifelse(ab7$Q409 > 6, NA, 7- as.numeric(ab7$Q409))                      ### Internet Use
+ab7$sm_daily<- ifelse(ab7$Q424 > 5, NA, as.numeric(ab7$Q424))                             ### Daily social media use(who use internet)
+ab7$fb<- ab7$Q412A_1                                                                      ### asked to those who use social media
+ab7$twitter<- ab7$Q412A_2                                                                 ### twitter
+ab7$ig <-ab7$Q412A_3                                                                      ### instagram
+ab7$tik<-ab7$Q412A_11                                                                     ### Tiktok
+ab7$sm_polinfo<- ifelse(ab7$Q425_2 > 5, NA, 6- as.numeric(ab7$Q425_2))                    ### social media for political events info
+ab7$sm_polexpress<-ifelse(ab7$Q425_4 > 5, NA, 6- as.numeric(ab7$Q425_4))                  ### social media:opinion about political issues
+ab7$sm_prime<-ifelse(ab7$Q421 %in% c(98, 99),  NA, 
+                     ifelse(ab7$Q421 ==6, 1, 0))
+ab7$tv_prime<-ifelse(ab7$Q421 == 5, 1, 0)
+ab7$ff_prime<-ifelse(ab7$Q421 == 1, 1, 0)
+ab7$tel_prime<-ifelse(ab7$Q421 == 2, 1, 0)
+ab7$np_prime<-ifelse(ab7$Q421 == 3, 1, 0)
+ab7$ra_prime<-ifelse(ab7$Q421 == 4, 1, 0)
+ab7$online_act<-ifelse(ab7$Q542 >2, NA, 2-ab7$Q542)
+
+ab7$express_guar<- ifelse(ab7$Q521_1 >4, NA, 5- as.numeric(ab7$Q521_1)) 
+
+
+
+## gov Index 
+ab7$gov_covid <- ifelse(ab7$Q204_25>5, NA, 5 - as.numeric(ab7$Q204_25))
+ab7$gov_equality <- ifelse(ab7$Q204_3 >5, NA, 5 - as.numeric(ab7$Q204_3))
+ab7$gov_security <- ifelse(ab7$Q204_11>5, NA, 5 - as.numeric(ab7$Q204_11))
+ab7$gov_prices <- ifelse(ab7$Q204_20>5, NA, 5 - as.numeric(ab7$Q204_20))
+ab7$gov_index<- (ab7$gov_covid + ab7$gov_equality + ab7$gov_security + ab7$gov_prices) / 4  ### Government Performance Index 
+ab7$protest_par<-Recode(ab7$Q532A, "3=1; 1=2; 2=3")                                         ### protest behavior 
+ab7$gov_trust<- ifelse(ab7$Q201A_1 > 4, NA, 5 - as.numeric(ab7$Q201A_1))                    ### Trust in Gov
+ab7$gov_satis <-ifelse(ab7$Q204A_3 > 4, NA, 5 - as.numeric(ab7$Q204A_3))                    ### satisfied with overall gov performance
+
+
+## establish gov index with principal component analysis(PCA)
+
+# Subset data
+data_for_pca <- ab7[, c("gov_covid", "gov_equality", "gov_security", "gov_prices")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+
+
+
+## interaction variables 
+ab7$gov_index<- (ab7$gov_covid + ab7$gov_equality + ab7$gov_security + ab7$gov_prices) / 4   ### Government Performance Index 
+ab7$gov_trust <- ifelse(ab7$Q201A_1 > 4, NA, 5 - as.numeric(ab7$Q201A_1))                    ### Trust in Gov
+ab7$gov_satis <-ifelse(ab7$Q204A_3 > 4, NA, 5 - as.numeric(ab7$Q204A_3))                     ### satisfied with overall gov performance
+ab7$deference<-ifelse(ab7$Q216 >4, NA, 5-as.numeric(ab7$Q216))                               ### agree with gov decisions 
+
+
+ab7$internet_c<-ab7$internet_use-mean(ab7$internet_use, trim = 0, na.rm = TRUE)
+ab7$info_c<-ab7$sm_polinfo - mean(ab7$sm_polinfo, trim = 0, na.rm = TRUE)
+ab7$express_c <-ab7$sm_polexpress-mean(ab7$sm_polexpress, trim = 0, na.rm = TRUE)
+ab7$satis_c <-ab7$gov_satis-mean(ab7$gov_satis, trim = 0, na.rm = TRUE)
+ab7$online_c <-ab7$online_act-mean(ab7$online_act, trim = 0, na.rm = TRUE)
+ab7$deference_c<-ab7$deference - mean(ab7$deference, trim = 0, na.rm = TRUE)
+ab7$prime_c<-ab7$sm_prime - mean(ab7$sm_prime, trim = 0, na.rm = TRUE)
+ab7$trust_c<-ab7$gov_trust - mean(ab7$gov_trust, trim = 0, na.rm = TRUE)
+ab7$index_c<-ab7$gov_index - mean(ab7$gov_index, trim = 0, na.rm = TRUE)
+ab7$daily_c<-ab7$sm_daily - mean(ab7$sm_daily, trim = 0, na.rm = TRUE)
+ab7$deference_info<-ab7$deference_c*ab7$info_c
+ab7$deference_express<-ab7$deference_c*ab7$express_c
+ab7$deference_online<-ab7$deference_c*ab7$online_c
+
+## center V-Dem variables 
+ab7$elecdem_c<- ab7$v2x_polyarchy - mean(ab7$v2x_polyarchy, na.rm = TRUE, trim = 0)
+ab7$libdem_c<- ab7$v2x_libdem - mean(ab7$v2x_libdem, na.rm = TRUE, trim = 0)
+ab7$pardem_c<- ab7$v2x_partipdem - mean(ab7$v2x_partipdem, na.rm = TRUE, trim = 0)
+ab7$delibdem_c<- ab7$v2x_delibdem - mean(ab7$v2x_delibdem, na.rm = TRUE, trim = 0)
+ab7$egaldem_c<- ab7$v2x_egaldem - mean(ab7$v2x_egaldem, na.rm = TRUE, trim = 0)
+```
+
+### Controls
+
+```{r}
+ab7$age<- ifelse(ab7$Q1001 ==99999, NA, as.numeric(ab7$Q1001))                            ### age
+ab7$year_born<-ifelse(ab7$Q1001YEAR ==99999, NA, as.numeric(ab7$Q1001YEAR))               ### year born
+ab7$app_age<-ifelse(ab7$Q1001APPROX ==99999, NA, as.numeric(ab7$Q1001APPROX))             ### approximate age
+ab7$female<-ifelse(ab7$Q1002 ==2, 1, 0)                                                   ### female
+ab7$urban<-ifelse(ab7$Q13 ==1, 1, 0)                                                       
+ab7$educ<-ifelse(ab7$Q1003 > 7, NA, as.numeric(ab7$Q1003))                                ### education 
+ab7$inter_trust<-ifelse(ab7$Q103 > 2, NA, 2- as.numeric(ab7$Q103))                        ### interpersonal trust
+ab7$gov_trust <- ifelse(ab7$Q201A_1 > 4, NA, 5 - as.numeric(ab7$Q201A_1))                 ### Trust in Gov
+ab7$gov_satis <-ifelse(ab7$Q204A_3 > 4, NA, 5 - as.numeric(ab7$Q204A_3))                  ### Overall gov satis
+ab7$pol_inter<- ifelse(ab7$Q404 > 5, NA, 5- as.numeric(ab7$Q404))                         ### Political Interest
+ab7$single<-ifelse(ab7$Q1010 %in% 99, NA, 
+                   ifelse(ab7$Q1010 ==1,1,0))
+ab7$unemployed<-ifelse(ab7$Q1005 %in% c(98, 99),  NA, 
+                       ifelse(ab7$Q1005== 6,1,0))
+ab7$will_sharia<-ifelse(ab7$Q605 >5, NA, as.numeric(ab7$Q605))
+ab7$religious<-ifelse(ab7$Q609 >3, NA, 4- as.numeric(ab7$Q609))
+
+
+ab7$Algeria <- ifelse(ab7$cname == "Algeria", 1, 0)
+ab7$Egypt <- ifelse(ab7$cname == "Egypt", 1, 0)
+ab7$Iraq <- ifelse(ab7$cname == "Iraq", 1, 0)
+ab7$Jordan <- ifelse(ab7$cname == "Jordan", 1, 0)
+ab7$Kuwait <- ifelse(ab7$cname == "Kuwait", 1, 0)
+ab7$Lebanon <- ifelse(ab7$cname == "Lebanon", 1, 0)
+ab7$Libya <- ifelse(ab7$cname == "Libya", 1, 0)
+ab7$Mauritania <- ifelse(ab7$cname == "Mauritania", 1, 0)
+ab7$Morocco <- ifelse(ab7$cname == "Morocco", 1, 0)
+ab7$Palestine <- ifelse(ab7$cname == "Palestine", 1, 0)
+ab7$Sudan <- ifelse(ab7$cname == "Sudan", 1, 0)
+ab7$Tunisia <- ifelse(ab7$cname == "Tunisia", 1, 0)
+
+ 
+ab7$protest<-Recode(ab7$Q532A, "3=1; 1=2; 2=3; 98=NA; 99=NA")
+
+
+# Gender Egalitarianism
+ab7$women_leader <- ifelse(ab7$Q601_3>5, NA, as.numeric(ab7$Q601_3))
+ab7$women_educ <- ifelse(ab7$Q601_4>5, NA, as.numeric(ab7$Q601_4))
+ab7$women_man <- ifelse(ab7$Q601_18>5, NA, as.numeric(ab7$Q601_18))
+ab7$women_index <- (ab7$women_leader +ab7$women_educ +ab7$women_man) / 3                   ### Gender Egalitarianism index
+
+
+## countries 
+ab7_al<-subset(ab7, COUNTRY== 1 )
+ab7_egy<-subset(ab7, COUNTRY== 5 )
+ab7_irq<-subset(ab7, COUNTRY== 7 )
+ab7_gor<-subset(ab7, COUNTRY== 8 )
+ab7_kuw<-subset(ab7, COUNTRY== 9 )
+ab7_leb<-subset(ab7, COUNTRY== 10 )
+ab7_lib<-subset(ab7, COUNTRY== 11 )
+ab7_mau<-subset(ab7, COUNTRY== 12 )
+ab7_mor<-subset(ab7, COUNTRY== 13 )
+ab7_pal<-subset(ab7, COUNTRY== 15 )
+ab7_sud<-subset(ab7, COUNTRY== 19 )
+ab7_tun<-subset(ab7, COUNTRY== 21 )
+
+pdata7 <- pdata.frame(ab7, index = "cname")  ### getting pooled data
+```
+
+## EDA
+
+### Dis of DVs
+
+```{r}
+ggplot(ab7, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(title="", 
+       x="Support for Democracy:AB7", 
+       y="Frequency") +
+  theme_minimal()
+
+
+
+
+ggplot(ab7, aes(x = cname, y =sm_polexpress)) +
+    geom_tile(aes(fill = religious), color = "white") +
+    scale_fill_gradient(low = "blue", high = "red") +
+    theme_minimal() +
+    labs(title = "", x = "", y = "Political Expression Using Social Media", fill = "Support for Democracy")
+
+
+p1 <- ggplot(ab1, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB1", y="Frequency") +
+  theme_minimal()
+
+p2 <- ggplot(ab2, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB2", y="Frequency") +
+  theme_minimal()
+
+p3 <- ggplot(ab3, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB3", y="Frequency") +
+  theme_minimal()
+
+p4 <- ggplot(ab4, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB4", y="Frequency") +
+  theme_minimal()
+
+p5 <- ggplot(ab5, aes(x=dem_index)) +  
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB5", y="Frequency") +
+  theme_minimal()
+
+p6 <- ggplot(ab7, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(x="Support for Democracy: AB7", y="Frequency") +
+  theme_minimal()
+
+# Arrange the plots in a grid
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 3, nrow = 2)
+```
+
+### Correlations
+
+```{r}
+cor.test(ab7$sm_polinfo, ab7$dem_index)
+cor.test(ab7$sm_polexpress, ab7$dem_index)
+cor.test(ab7$sm_polinfo, ab7$deference)
+cor.test(ab7$sm_polinfo, ab7$gov_trust)
+cor.test(ab7$sm_polinfo, ab7$gov_satis)
+cor.test(ab7$sm_polinfo, ab7$gov_index)
+cor.test(ab7$sm_polexpress, ab7$deference)
+cor.test(ab7$sm_polexpress, ab7$gov_trust)
+cor.test(ab7$sm_polexpress, ab7$gov_satis)
+cor.test(ab7$sm_polexpress, ab7$gov_index)
+```
+
+### Boxplots
+
+```{r}
+p1<-ab1 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy:AB1", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+
+
+
+p2<-ab2 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy:AB2", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+p3<-ab3 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy: AB3", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+
+p4<-ab4 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy: AB4", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+
+p5<-ab5 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy: AB5", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+
+p6<-ab7 |>
+  filter(!is.na(cname), 
+         !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_boxplot(aes(fill = cname), color = "black") + 
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy: AB7", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("M:", round(..y.., 1)), vjust = 0), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+
+
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 2, nrow = 3)
+```
+
+### Violin Plots
+
+```{r}
+dem_cname <- ab7 |>
+  filter(!is.na(cname), !is.na(dem_index)) |>
+  ggplot(aes(x = cname, y = dem_index)) +
+  geom_violin(aes(fill = cname), color = "black") +   # Create violin plots
+  geom_jitter(width = 0.1, alpha = 0.3) +             # Add jittered points
+  geom_boxplot(width=0.1, aes(fill = cname), outlier.shape = NA) + # Add boxplot for IQR
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean:", round(..y.., 2))), 
+               vjust = 2, position = position_dodge(width = 0.8)) +
+  stat_summary(fun = median, geom = "text", 
+               aes(label = paste("Median:", round(..y.., 2))), 
+               vjust = -2, position = position_dodge(width = 0.8)) +
+  labs(title = "", 
+       x = "", 
+       y = "Support for Democracy", 
+       subtitle="",
+       fill="") +
+  theme_minimal() +
+  theme(legend.position = "none")
+dem_cname
+```
+
+## Models
+
+### Pol Info and Pol Ex
+
+```{r}
+
+######## Main Models: Deference and Trust 
+
+m1<- plm(dem_index~ info_c*deference_c,  data = pdata7, model = "pooling")
+m2<- plm(dem_index~ info_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m3<- plm(dem_index~ info_c*trust_c,  data = pdata7, model = "pooling")
+m4<- plm(dem_index~ info_c*trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m5<- plm(dem_index~ express_c*deference_c,  data = pdata7, model = "pooling")
+m6<- plm(dem_index~ express_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m7<- plm(dem_index~ express_c*trust_c,  data = pdata7, model = "pooling")
+m8<- plm(dem_index~ express_c*trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8,
+  dep.var.labels = c("Support for Democracy"),
+  covariate.labels = c("SM Pol Info","SM Pol Ex", "Defer to Gov", "Unemployed", "Interest in Politics", "Age", "Education", "Female (ref: Male)", "Religiosity", "Urban", "Single", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", "Palestine", "Sudan", "Tunisia", "SM Pol Info: Defer to Gov", "Trust in Gov", "SM Pol Info: Trust in Gov", "SM Pol Ex: Defer to Gov", "SM Pol Ex: Trust in Gov"),
+  type = "text",
+  omit.stat=c("f", "ser"), out = "negative_7.html", style = "apsr")
+
+#stargazer(m1, m2, m3, m4, m5, m6, m7, m8, type = "text", omit.stat=c("f", "ser"))
+
+
+
+########## Appendix: Satis and Index
+
+m1<- plm(dem_index~ info_c*satis_c,  data = pdata7, model = "pooling")
+m2<- plm(dem_index~ info_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m3<- plm(dem_index~ info_c*index_c,  data = pdata7, model = "pooling")
+m4<- plm(dem_index~ info_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m5<- plm(dem_index~ express_c*satis_c,  data = pdata7, model = "pooling")
+m6<- plm(dem_index~ express_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m7<- plm(dem_index~ express_c*index_c,  data = pdata7, model = "pooling")
+m8<- plm(dem_index~ express_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, 
+          dep.var.labels=c("Support for Democracy"), 
+          covariate.labels=c("SM Pol Info","SM Pol Ex","Satisfaction with Gov",  "Unemployed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Urban", "Single", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", 
+                             "Palestine", "Sudan", "Tunisia",   "SM Pol Info: Satisfaction with Gov", "Support for Gov Index", "SM Pol Info: Support for Gov Index", "SM Pol Exp: Satisfaction with Gov", "SM Pol Ex: Support for Gov Index" ), 
+          type="text",
+          omit.stat=c("f", "ser"), out = "negative_7_apen.html", style = "apsr") 
+
+
+
+
+
+
+
+
+
+
+
+### Appendix: GLM with Gamma
+m1<- glm(dem_index ~ info_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m2<- glm(dem_index ~ info_c*trust_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m3<- glm(dem_index ~ info_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m4<- glm(dem_index ~ info_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m5<- glm(dem_index ~ express_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m6<- glm(dem_index ~ express_c*trust_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m7<- glm(dem_index ~ express_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+m8<- glm(dem_index ~ express_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + Jordan + Lebanon + Libya + Mauritania + Morocco + Palestine + Sudan + Tunisia, 
+                 family = Gamma(link = "log"), data = ab7)
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, 
+          dep.var.labels = c("Support for Democracy"),
+  covariate.labels = c("SM Pol Info", "SM Pol Ex", "Deference to Gov", "Trust in Gov", "Satisfaction with Gov","Support for Gov Index", "Unemployed",  "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Urban", "Single", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", "Palestine", "Sudan", "Tunisia","SM Pol Info: Deference to Gov",  "SM Pol Info: Trust in Gov",  "SM Pol Info: Satisfaction with Gov",  "SM Pol Info: Support for Gov Index" , "SM Pol Ex: Deference to Gov",  "SM Pol Ex: Trust in Gov",  "SM Pol Exp: Satisfaction with Gov", "SM Pol Ex: Support for Gov Index"),
+  type = "text",
+  omit.stat=c("f", "ser"), out = "gamma.html", style = "apsr")
+
+```
+
+```{r}
+### Coefficient Plots 
+
+# function extract coefficients, standard errors, and confidence intervals
+extract_coefs <- function(model, model_name) {
+  coefs <- summary(model)$coefficients
+  data.frame(
+    term = rownames(coefs),
+    estimate = coefs[, "Estimate"],
+    std.error = coefs[, "Std. Error"],
+    conf.low = coefs[, "Estimate"] - 1.96 * coefs[, "Std. Error"],
+    conf.high = coefs[, "Estimate"] + 1.96 * coefs[, "Std. Error"],
+    model = model_name 
+  )
+}
+
+# extract coefficients for Models 2, 4, 6, and 8
+tidy_m2 <- extract_coefs(m2, "Model 2")
+tidy_m4 <- extract_coefs(m4, "Model 4")
+tidy_m6 <- extract_coefs(m6, "Model 6")
+tidy_m8 <- extract_coefs(m8, "Model 8")
+
+# combine all models into one data frame
+combined_data <- bind_rows(tidy_m2, tidy_m4, tidy_m6, tidy_m8)
+
+# remove intercept term and any duplicate country variables
+combined_data <- combined_data %>%
+  filter(term != "(Intercept)") %>%
+  distinct(term, estimate, .keep_all = TRUE) 
+
+# sort by estimates (from most negative to most positive)
+combined_data <- combined_data %>% arrange(estimate)
+
+# create coefficient plot using ggplot2 with smaller dots and no duplicates
+ggplot(combined_data, aes(x = reorder(term, estimate), y = estimate, color = model)) +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high), 
+                  position = position_dodge(width = 0.5),
+                  size = 0.6) +  
+  geom_point(position = position_dodge(width = 0.5), size = 1.8) +  # Add smaller dots for point estimates
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
+  coord_flip() +  
+  labs(title = "Coefficient Plot for Models 2, 4, 6, and 8",
+       x = "Variables",
+       y = "Coefficient Estimate",
+       color = "Model") +  
+  theme_minimal()
+```
+
+### Political Information and Expression Without Interactions
+
+```{r}
+m1<- plm(dem_index~ info_c,  data = pdata7, model = "pooling")
+m2<- plm(dem_index~ express_c,  data = pdata7, model = "pooling")
+m3<- plm(dem_index~ info_c+deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m4<- plm(dem_index~ info_c+trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m5<- plm(dem_index~ info_c+satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m6<- plm(dem_index~ info_c+index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m7<- plm(dem_index~ express_c+deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m8<- plm(dem_index~ express_c+trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m9<- plm(dem_index~ express_c+satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m10<- plm(dem_index~ express_c+index_c + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+
+
+
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10,
+          dep.var.labels=c("Support for Democracy"), 
+          covariate.labels=c("SM Pol Info","SM Pol Express", "Deference to Gov","Trust in Gov", "Satisfaction with Gov","Support for Gov Index", "Unemployed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Urban", "Single", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", "Palestine", "Sudan", "Tunisia"), 
+          type="text",
+          omit.stat=c("f", "ser"), out = "AB7_NoInter.html", style = "apsr")  
+```
+
+## V-dem
+
+### Y-intercepts in Regimes
+
+```{r}
+
+################## Plot Y-Intercepts 
+
+
+
+#### Model 1
+
+
+# Fit the linear mixed-effects model
+m1 <- lmer(
+  dem_index ~ info_c * deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + 
+    (1 | regime), 
+  data = pdata7, 
+  REML = FALSE
+)
+
+# extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m1)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m1, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# extract random intercepts with conditional variances
+ranef_regime <- ranef(m1, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m1, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# Create a mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create plot with regime names
+p1<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Pol Info x Deference to Gov",
+    y = "Y-Intercept (Support for Democracy)",
+    x = "Regime Type"
+  ) +
+  theme_bw() 
+
+
+
+
+
+
+### Model 2
+m2<- lmer(dem_index~ info_c*trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+
+
+# extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m2)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m2, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# Extract random intercepts with conditional variances
+ranef_regime <- ranef(m2, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m2, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding the fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# Create a mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create the plot with regime names
+p2<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Pol Info x Trust in Gov",
+    y = "Y-Intercept (Support for Democracy)",
+    x = ""
+  ) +
+  theme_bw() 
+
+
+#### Model 3
+m3<- lmer(dem_index~ express_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+
+
+
+# Extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m3)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m3, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# Extract random intercepts with conditional variances
+ranef_regime <- ranef(m3, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m3, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding the fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# create mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create the plot with regime names
+p3<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Pol Express x Deference to Gov",
+    y = "Y-Intercept (Support for Democracy)",
+    x = "Regime Type"
+  ) +
+  theme_bw()
+
+#### Model 4
+m4<- lmer(dem_index~ express_c*trust_c+ unemployed +pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+
+
+# Extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m4)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m4, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# Extract random intercepts with conditional variances
+ranef_regime <- ranef(m4, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m4, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding the fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# Create mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create plot with regime names
+p4<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Pol Express x Trust in Gov",
+    y = "Y-Intercept (Support for Democracy)",
+    x = ""
+  ) +
+  theme_bw()
+
+
+
+
+
+
+
+
+
+######### Model 5
+
+
+# Fit linear mixed-effects model
+m5 <- lmer(
+  dem_index ~ info_c+ unemployed + pol_inter + age + educ + female + religious + urban + single + 
+    (1 | regime), 
+  data = pdata7, 
+  REML = FALSE
+)
+
+# Extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m5)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m5, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# Extract random intercepts with conditional variances
+ranef_regime <- ranef(m5, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m5, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding the fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# Create mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create the plot with regime names
+p5<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Political Information",
+    y = "Y-Intercept (Support for Democracy)",
+    x = "Regime Type"
+  ) +
+  theme_bw() 
+
+
+
+
+
+
+
+############ Model 6
+m6<- lmer(dem_index~ express_c+ unemployed +pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+
+
+# Extract fixed intercept and its confidence interval
+fixed_effects <- fixef(m6)
+fixed_intercept <- fixed_effects["(Intercept)"]
+conf_int_fixed <- confint(m6, parm = "(Intercept)", method = "Wald")
+fixed_ci_lower <- conf_int_fixed[1]
+fixed_ci_upper <- conf_int_fixed[2]
+print(paste("Fixed Intercept:", round(fixed_intercept, 4)))
+print(paste("95% CI Lower:", round(fixed_ci_lower, 4)))
+print(paste("95% CI Upper:", round(fixed_ci_upper, 4)))
+
+# Extract random intercepts with conditional variances
+ranef_regime <- ranef(m6, condVar = TRUE)$regime
+ranef_regime_df <- ranef_regime %>%
+  rownames_to_column(var = "regime") %>%
+  rename(random_intercept = `(Intercept)`)
+
+# Calculate standard errors from conditional variances
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    se = sqrt(attr(ranef(m6, condVar = TRUE)$regime, "postVar")[1, , 1])
+  )
+
+# Calculate 95% Confidence Intervals for random intercepts
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    ci_lower = random_intercept - 1.96 * se,
+    ci_upper = random_intercept + 1.96 * se
+  )
+
+# Adjust random intercepts by adding the fixed intercept
+ranef_regime_df <- ranef_regime_df %>%
+  mutate(
+    intercept = fixed_intercept + random_intercept,
+    intercept_lower = fixed_intercept + ci_lower,
+    intercept_upper = fixed_intercept + ci_upper
+  )
+
+# Create mapping of regime numbers to regime names
+ranef_regime_df$regime_name <- c("Closed Autocracies", "Electoral Autocracies", "Electoral Democracies (Tunisia)")
+
+# Create the plot with regime names
+p6<-ggplot(ranef_regime_df, aes(x = reorder(regime_name, intercept), y = intercept)) +
+  geom_point(color = "blue", size = 3) +
+  geom_errorbar(aes(ymin = intercept_lower, ymax = intercept_upper), width = 0.2, color = "blue") +
+  geom_hline(yintercept = fixed_intercept, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = fixed_ci_lower, color = "red", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = fixed_ci_upper, color = "red", linetype = "dotted", size = 0.8) +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "SM Political Expression",
+    y = "Y-Intercept (Support for Democracy)",
+    x = ""
+  ) +
+  theme_bw()
+
+
+grid.arrange(p1, p2, p3, p4, p5,p6, nrow = 3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############# Appendix: Regime 
+m1<- lmer(dem_index~ info_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c+ unemployed +pol_inter + age + educ + female + religious + urban + single + (1|regime),data = pdata7,REML =FALSE)
+m5<- lmer(dem_index~ info_c+ unemployed + pol_inter + age + educ + female + religious + urban + single+deference_c+ (1|regime),data = pdata7,REML =FALSE)
+m6<- lmer(dem_index~ express_c+ unemployed +pol_inter + age + educ + female + religious + urban + trust_c+single + (1|regime),data = pdata7,REML =FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+tab_model(m1, m2, m3, m4, m5, m6,
+          show.ci = FALSE, 
+          show.se = TRUE,
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          CSS = css_theme("regression"),
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4", "Model 5", 
+                        "Model 6"), 
+          pred.labels = c("Intercept", "SM Pol Info", "Deference to Gov", "Unemployed", "Interest in Politics", "Age", "Education", "Female(Ref:Male)","Religiosity","Urban", "Single", "SM Pol Info: Deference to Gov", "Trust in Gov", "SM Pol Info: Trust in Gov", "SM Pol Express", "SM Pol Express:Deference to Gov", "SM Pol Express: Trust in Gov" ), file="regime.doc")
+```
+
+
+
+### Two-way Interactions
+
+```{r}
+
+###### Political Information 
+m1<- lmer(dem_index ~ info_c * elecdem_c+ gov_trust+unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index ~ info_c *libdem_c+gov_trust+ unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index ~ info_c *pardem_c+gov_trust+unemployed + pol_inter + age + educ +female+ religious + urban + single +(1|cname),data = pdata7,REML=FALSE)
+m4<- lmer(dem_index ~ info_c *delibdem_c+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+m5<- lmer(dem_index ~ info_c *egaldem_c+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+m6<- lmer(dem_index ~ info_c *as.factor(regime)+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+
+
+# Visualize models using tab_model with the complete pred.labels
+tab_model(m1, m2, m3, m4, m5, m6, 
+          show.ci = FALSE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4", "Model 5", "Model 6"),
+          pred.labels = c(
+  "Intercept",
+  "Pol Info",
+  "Electoral Democracy",
+  "Trust in Government",                # gov_trust
+  "Unemployment",                       # unemployed
+  "Political Interest",                 # pol_inter
+  "Age",                                # age
+  "Education",                          # educ
+  "Female (Ref: Male)",                 # female
+  "Religiosity",                        # religious
+  "Urban",                              # urban
+  "Single",                             # single
+  "Pol Info × Elec Dem Score",            # info_c × elecdem_c
+  "Liberal Democracy Score",            # libdem_c
+  "Pol Info × Lib Dem Score",           # info_c × libdem_c
+  "Partisan Democracy Score",           # pardem_c
+  "Pol Info × Part Dem Score",          # info_c × pardem_c
+  "Deliberative Democracy Score",       # delibdem_c
+  "Pol Info × Delib Democ Score",       # info_c × delibdem_c
+  "Egalitarian Democracy Score",        # egaldem_c
+  "Pol Info × Egal Democ Score",        # info_c × egaldem_c
+  "Electoral Autocracies",              # regime [1]
+  "Electoral Democracie",                # regime [2]
+  "Pol Info × Elec Autoc",               # info_c × regime [1]
+  "Pol Info × Elec Democ: Democratic"),   # info_c × regime [2]
+  show.se = TRUE,
+  file="table.doc")
+
+
+
+
+
+
+########### Political Expression
+
+m1<- lmer(dem_index ~ express_c * elecdem_c+ gov_trust+unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index ~ express_c *libdem_c+gov_trust+ unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index ~ express_c *pardem_c+gov_trust+unemployed + pol_inter + age + educ +female+ religious + urban + single +(1|cname),data = pdata7,REML=FALSE)
+m4<- lmer(dem_index ~ express_c *delibdem_c+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+m5<- lmer(dem_index ~ express_c *egaldem_c+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+m6<- lmer(dem_index ~ express_c *as.factor(regime)+gov_trust+unemployed+pol_inter+ age + educ + female + religious + urban + single + (1 | cname),data = pdata7,REML =FALSE)
+
+# Visualize the models using tab_model with the complete pred.labels
+tab_model(m1, m2, m3, m4, m5, m6, 
+          show.ci = FALSE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4", "Model 5", "Model 6"),
+          pred.labels = c(
+  "Intercept",
+  "Pol Express",
+  "Electoral Democracy",
+  "Trust in Government",                # gov_trust
+  "Unemployment",                       # unemployed
+  "Political Interest",                 # pol_inter
+  "Age",                                # age
+  "Education",                          # educ
+  "Female (Ref: Male)",                 # female
+  "Religiosity",                        # religious
+  "Urban",                              # urban
+  "Single",                             # single
+  "Pol Express × Elec Dem Score",            # express_c × elecdem_c
+  "Liberal Democracy Score",            # libdem_c
+  "Pol Express × Lib Dem Score",           # express_c × libdem_c
+  "Partisan Democracy Score",           # pardem_c
+  "Pol Express × Part Dem Score",          # express_c × pardem_c
+  "Deliberative Democracy Score",       # delibdem_c
+  "Pol Express × Delib Democ Score",       # express_c × delibdem_c
+  "Egalitarian Democracy Score",        # egaldem_c
+  "Pol Express × Egal Democ Score",        # express_c × egaldem_c
+  "Electoral Autocracies",              # regime [1]
+  "Electoral Democracie",                # regime [2]
+  "Pol Express × Elec Autoc",               # express_c × regime [1]
+  "Pol Express × Elec Democ: Democratic"),   # express_c × regime [2]
+  show.se = TRUE,
+  file="table_express.doc")
+```
+
+### Three-Way Interactions
+
+```{r}
+
+########## Electoral  
+m1<- lmer(dem_index~ info_c*deference_c*elecdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*elecdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*elecdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*elecdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),
+          pred.labels =c("Intercept", "SM Pol Info", "Deference", "Elec Dem", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Elec Dem", "Deference to Gov: Elec Dem", "(SM Pol Info:Defer to Gov): Elec Dem", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Elec Dem", "(SM Pol Info: Trust in Gov): Elec Dem", "SM Pol Express", "SM Pol Express: Deference to Gov", "SM Pol Express: Elec Dem", "(SM Pol Express: Defer to Gov): Elec Dem", "SM Pol Express: Trust in Gov", "(SM Pol Express: Trust in Gov): Elec Dem"),
+          file="elec.doc")
+
+
+
+
+
+
+ 
+ 
+############ Liberal Democracy 
+m1<- lmer(dem_index~ info_c*deference_c*libdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*libdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*libdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*libdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),
+          pred.labels =c("Intercept", "SM Pol Info", "Deference", "Lib Dem", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Lib Dem", "Deference to Gov: Lib Dem", "(SM Pol Info:Defer to Gov): Lib Dem", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Lib Dem", "(SM Pol Info: Trust in Gov): Lib Dem", "SM Pol Express", "SM Pol Express: Deference to Gov", "SM Pol Express: Lib Dem", "(SM Pol Express: Defer to Gov): Lib Dem", "SM Pol Express: Trust in Gov", "(SM Pol Express: Trust in Gov): Lib Dem"),
+          file="lib.doc")
+
+
+
+
+
+
+
+############ Participatory 
+m1<- lmer(dem_index~ info_c*deference_c*pardem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*pardem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*pardem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*pardem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+
+
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),
+          pred.labels =c("Intercept", "SM Pol Info", "Deference", "Par Dem", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Par Dem", "Deference to Gov: Par Dem", "(SM Pol Info:Defer to Gov): Par Dem", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Par Dem", "(SM Pol Info: Trust in Gov): Par Dem", "SM Pol Express", "SM Pol Express: Deference to Gov", "SM Pol Express: Par Dem", "(SM Pol Express: Defer to Gov): Par Dem", "SM Pol Express: Trust in Gov", "(SM Pol Express: Trust in Gov): Par Dem"),
+          file="par.doc")
+
+
+
+
+
+############ Deliberate 
+
+m1<- lmer(dem_index~ info_c*deference_c*delibdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*delibdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*delibdem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*delibdem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+
+
+
+
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),
+          pred.labels =c("Intercept", "SM Pol Info", "Deference", "Delib Dem", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Delib Dem", "Deference to Gov: Delib Dem", 
+                         "(SM Pol Info:Defer to Gov): Delib Dem", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Delib Dem", "(SM Pol Info: Trust in Gov): Delib Dem", "SM Pol Express", 
+                         "SM Pol Express: Deference to Gov", "SM Pol Express: Delib Dem", "(SM Pol Express: Defer to Gov): Delib Dem", "SM Pol Express: Trust in Gov", 
+                         "(SM Pol Express: Trust in Gov): Delib Dem"),
+          file="delib.doc")
+
+
+
+
+
+
+
+
+
+
+
+
+
+########### Egalitarian 
+
+m1<- lmer(dem_index~ info_c*deference_c*egaldem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*egaldem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*egaldem_c + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*egaldem_c + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+
+
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),
+          pred.labels =c("Intercept", "SM Pol Info", "Deference", "Egal Dem", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Egal Dem", "Deference to Gov: Egal Dem", 
+                         "(SM Pol Info:Defer to Gov): Egal Dem", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Egal Dem", "(SM Pol Info: Trust in Gov): Egal Dem", "SM Pol Express", 
+                         "SM Pol Express: Deference to Gov", "SM Pol Express: Egal Dem", "(SM Pol Express: Defer to Gov): Egal Dem", "SM Pol Express: Trust in Gov", 
+                         "(SM Pol Express: Trust in Gov): Egal Dem"),
+          file="egal.doc")
+
+          
+       
+
+
+
+
+
+
+
+####### Regimes of World
+
+
+m1<- lmer(dem_index~ info_c*deference_c*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m2<- lmer(dem_index~ info_c*trust_c*as.factor(regime) + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m3<- lmer(dem_index~ express_c*deference_c*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+m4<- lmer(dem_index~ express_c*trust_c*as.factor(regime) + unemployed +pol_inter + age + educ + female + religious + urban + single + (1|cname),data = pdata7,REML =FALSE)
+
+
+tab_model(m1, m2, m3, m4, 
+          show.ci =FALSE, 
+          show.se = TRUE,              
+          show.re.var = TRUE,           
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", 
+                        "Model 4"),   pred.labels =c("Intercept", "SM Pol Info", "Deference", "Electoral Autocracy(ref: Closed Autocracy )","Electoral Democracy(ref: Closed Autocracy )", "Unemployed", "Interest in Politics",
+                         "Age", "Education", "Female(ref: Male)", "Religiosity", "Urban", "Single", "SM Pol Info: Deference to Gov", "SM Pol Info: Electoral Autocracy","SM Pol Info: Electoral Democracy", "Deference to Gov: Electoral Autocracy","Deference to Gov: Electoral Democracy", 
+                         "(SM Pol Info:Defer to Gov):Electoral Autocracy","(SM Pol Info:Defer to Gov):Electoral Democracy", "Trust in Gov", "SM Pol Info: Trust in Gov", "Trust in Gov: Electoral Autocracy", "Trust in Gov: Electoral Democracy", "(SM Pol Info: Trust in Gov): Electoral Autocracy","(SM Pol Info: Trust in Gov): Electoral Democracy" , "SM Pol Express", 
+                         "SM Pol Express: Deference to Gov", "SM Pol Express: Electoral Autocracy", "SM Pol Express: Electoral Democracy","(SM Pol Express: Defer to Gov): Electoral Autocracy","(SM Pol Express: Defer to Gov): Electoral Democracy", "SM Pol Express: Trust in Gov", 
+                         "(SM Pol Express: Trust in Gov): Electoral Autocracy", "(SM Pol Express: Trust in Gov): Electoral Democracy"),
+          file="regime.doc")
+```
+
+
+## Predicted Mean
+
+### Political Information
+
+```{r}
+# Model of Political Information with Deference 
+m1<-lm(dem_index~ info_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single+ Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(info_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        deference_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# predict fitted values and confidence intervals
+predicted.data <- predict(m1, newdata = temp.data, interval="confidence", level=0.95)
+
+# combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot main effects 
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Information Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+# Plot interaction term
+interact_plot(m1, pred =info_c, modx =deference_c, interval = TRUE,  x.label ="Political Information Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Deference to Government")
+
+
+
+
+#model 
+m2<-lm(dem_index~ info_c*trust_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(info_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        trust_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# predict fitted values and confidence intervals
+predicted.data <- predict(m2, newdata = temp.data, interval="confidence", level=0.95)
+
+# combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Information Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+
+interact_plot(m2, pred =info_c, modx =trust_c, interval = TRUE,  x.label ="Political Information Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Trust in Government")
+
+
+
+
+
+
+
+
+
+
+m3<-lm(dem_index~ info_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(info_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        satis_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# Predict fitted values and confidence intervals
+predicted.data <- predict(m3, newdata = temp.data, interval="confidence", level=0.95)
+
+# Combine the hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Information Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+interact_plot(m3, pred =info_c, modx =satis_c, interval = TRUE,  x.label ="Political Information Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Satisfaction with Gov Performance")
+
+
+
+
+
+
+m4<-lm(dem_index~ info_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# Create temporary data frame of hypothetical values
+temp.data <- data.frame(info_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        index_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# Predict fitted values and confidence intervals
+predicted.data <- predict(m4, newdata = temp.data, interval="confidence", level=0.95)
+
+# Combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Information Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+interact_plot(m4, pred =info_c, modx =index_c, interval = TRUE,  x.label ="Political Information Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Gov Support Index")
+```
+
+### Political Expression
+
+```{r}
+
+# Model of Political Information with Deference 
+m1<-lm(dem_index~ express_c*deference_c + unemployed + pol_inter + age + educ + female + religious + urban + single+ Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(express_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        deference_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# predict fitted values and confidence intervals
+predicted.data <- predict(m1, newdata = temp.data, interval="confidence", level=0.95)
+
+# Combine the hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot main effects 
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Expression Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+# Plot interaction term
+interact_plot(m1, pred =express_c, modx =deference_c, interval = TRUE,  x.label ="Political Expression  Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Deference to Government")
+
+
+
+
+
+
+
+
+#model 
+m2<-lm(dem_index~ express_c*trust_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(express_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        trust_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# predict fitted values and confidence intervals
+predicted.data <- predict(m2, newdata = temp.data, interval="confidence", level=0.95)
+
+# Combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Expression  Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+
+interact_plot(m2, pred =express_c, modx =trust_c, interval = TRUE,  x.label ="Political Expression  Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Trust in Government")
+
+
+
+
+
+
+
+
+
+
+m3<-lm(dem_index~ express_c*satis_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# Create a temporary data frame of hypothetical values
+temp.data <- data.frame(express_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        satis_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# Predict fitted values and confidence intervals
+predicted.data <- predict(m3, newdata = temp.data, interval="confidence", level=0.95)
+
+# Combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Expression  Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+interact_plot(m3, pred =express_c, modx =satis_c, interval = TRUE,  x.label ="Political Expression  Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Satisfaction with Gov Performance")
+
+
+
+
+
+
+m4<-lm(dem_index~ express_c*index_c + unemployed + pol_inter + age + educ + female + religious + urban + single+Jordan+Lebanon+Libya+Mauritania+Morocco+Palestine+Sudan+Tunisia,  data = ab7)
+
+
+# create temporary data frame of hypothetical values
+temp.data <- data.frame(express_c = rep(seq(-2.2340478194149,  1.7659521805851, 1), 1, na.rm=T ),
+                        index_c=mean(ab7$deference, na.rm=T),
+                        unemployed=mean(ab7$unemployed, na.rm=T),
+                        pol_inter=mean(ab7$pol_inter, na.rm=T),
+                        gov_trust=mean(ab7$gov_trust, na.rm=T),
+                        Jordan=median(ab7$Jordan, na.rm=T),
+                        Lebanon=median(ab7$Lebanon, na.rm=T),
+                        Libya=median(ab7$Libya, na.rm=T),
+                        Mauritania=median(ab7$Mauritania, na.rm=T),
+                        Morocco=median(ab7$Morocco, na.rm=T),
+                        Palestine=median(ab7$Palestine, na.rm=T),
+                        Sudan=median(ab7$Sudan, na.rm=T),
+                        Tunisia=median(ab7$Tunisia, na.rm=T),
+                        single=median(ab7$single, na.rm=T),
+                        urban=median(ab7$urban, na.rm=T),
+                        female=median(ab7$female, na.rm=T),
+                        religious=mean(ab7$religious, na.rm=T),
+                        age=mean(ab7$age, na.rm=T),
+                        educ=mean(ab7$educ, na.rm=T)
+                        
+)
+
+# predict fitted values and confidence intervals
+predicted.data <- predict(m4, newdata = temp.data, interval="confidence", level=0.95)
+
+# combine hypothetical data and predicted values
+new.data <- cbind(temp.data, as.data.frame(predicted.data))
+
+# Naming and Ordering
+names <- c("Never", "Less than once a week", "Once a week", "Several times a week", "At least once daily")
+new.data$group <- factor(names, levels=names)
+
+
+# Plot
+ggplot(aes(x=group, y=fit, ymin=lwr, ymax=upr, color=group), data=new.data) +
+  geom_linerange(size=1) +
+  geom_point(size=12, shape=21, fill="white") +
+  geom_text(aes(label=round(fit, 2)), position=position_nudge(y = 0), check_overlap = TRUE) +  # Adjusted to prevent text overlap with points
+  labs(x="Political Expression  Using Social Media", y="Support for Democracy") +
+  theme_bw()+
+  theme(legend.position="none")
+
+
+interact_plot(m4, pred =express_c, modx =index_c, interval = TRUE,  x.label ="Political Expression  Using Social Media", y.label ="Mean Support for Democracy", 
+              legend.main="Gov Support Index")
+```
+
+## Self-Selection Mechanism
+
+### Political Information
+
+```{r}
+library(scales)
+
+### Political Information by Deference to Government
+cht <- chisq.test(ab7$sm_polinfo, ab7$deference)
+cht$statistic
+corr<-cor.test(ab7$sm_polinfo, ab7$deference, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+info_defer<- table(ab7$sm_polinfo, ab7$deference)
+info_defer_p<- prop.table(info_defer, 1)
+info_defer_df <- as.data.frame(info_defer_p)
+names(info_defer_df) <- c("sm_polinfo", "deference",  "Frequency")
+info_defer_df$sm_polinfo<-recode_factor(info_defer_df$sm_polinfo, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+info_defer_df$deference<-recode_factor(info_defer_df$deference, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(info_defer_df)
+info_by_defer<-ggplot(info_defer_df, aes(x=sm_polinfo, y=Frequency, fill=deference)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Information", y="", fill="Deference to Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+info_by_defer
+
+
+
+
+### Political Information  by Trust in Government
+cht <- chisq.test(ab7$sm_polinfo, ab7$gov_trust)
+cht$statistic
+corr<-cor.test(ab7$sm_polinfo, ab7$gov_trust, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+info_trust<- table(ab7$sm_polinfo, ab7$gov_trust)
+info_trust_p<- prop.table(info_trust, 1)
+info_trust_df <- as.data.frame(info_trust_p)
+names(info_trust_df) <- c("sm_polinfo", "gov_trust",  "Frequency")
+info_trust_df$sm_polinfo<-recode_factor(info_trust_df$sm_polinfo, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+info_trust_df$gov_trust<-recode_factor(info_trust_df$gov_trust, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(info_trust_df)
+info_by_trust<-ggplot(info_trust_df, aes(x=sm_polinfo, y=Frequency, fill=gov_trust)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Information", y="", fill="Trust in Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+info_by_trust
+
+
+
+
+### Political Information by Satisfaction with Government
+cht <- chisq.test(ab7$sm_polinfo, ab7$gov_satis)
+cht$statistic
+corr<-cor.test(ab7$sm_polinfo, ab7$gov_satis, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+info_satis<- table(ab7$sm_polinfo, ab7$gov_satis)
+info_satis_p<- prop.table(info_satis, 1)
+info_satis_df <- as.data.frame(info_satis_p)
+names(info_satis_df) <- c("sm_polinfo", "gov_satis",  "Frequency")
+info_satis_df$sm_polinfo<-recode_factor(info_satis_df$sm_polinfo, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+info_satis_df$gov_satis<-recode_factor(info_satis_df$gov_satis, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(info_satis_df)
+info_by_satis<-ggplot(info_satis_df, aes(x=sm_polinfo, y=Frequency, fill=gov_satis)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Information", y="", fill="Satisfaction with Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+info_by_satis
+
+
+
+
+
+### Political Information by Support for Government Index
+ab7$info<-recode_factor(ab7$sm_polinfo, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+cht <- chisq.test(ab7$sm_polinfo, ab7$gov_index)
+cht$statistic
+corr<-cor.test(ab7$sm_polinfo, ab7$gov_index,  method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+info_index<- ab7 |>
+  filter(!is.na(info), 
+         !is.na(gov_index)) |>
+  ggplot(aes(x = info, y = gov_index)) +
+  geom_boxplot(aes(fill = info), color = "black") + 
+  geom_jitter(width = 0.1, alpha = 0.5) +                      # Add jittered points 
+  labs(title = "", 
+       x = "Using Social Media for Political Information", 
+       y = "Support for Government Index", 
+       subtitle=sbtitle,
+       fill="") +
+  theme_minimal() +
+  geom_text(data = . %>% group_by(info) %>%
+              filter(gov_index == max(gov_index)), 
+            aes(label = paste("Max:", round(gov_index, 2)), 
+                y = gov_index + 0.2), vjust = -0.5) +           # Label max values
+  geom_text(data = . %>% group_by(info) %>%
+              filter(gov_index == min(gov_index)), 
+            aes(label = paste("Min:", round(gov_index, 2)), 
+                y = gov_index - 0.2), vjust = 1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean:", round(..y.., 2)), vjust = -56), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+info_index
+```
+
+### Political Expression
+
+```{r}
+library(scales)
+library(dplyr)
+
+
+### Political Expression by Deference to Government
+cht <- chisq.test(ab7$sm_polexpress, ab7$deference)
+cht$statistic
+corr<-cor.test(ab7$sm_polexpress, ab7$deference, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+express_defer<- table(ab7$sm_polexpress, ab7$deference)
+express_defer_p<- prop.table(express_defer, 1)
+express_defer_df <- as.data.frame(express_defer_p)
+names(express_defer_df) <- c("sm_polexpress", "deference",  "Frequency")
+express_defer_df$sm_polexpress<-recode_factor(express_defer_df$sm_polexpress, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+express_defer_df$deference<-recode_factor(express_defer_df$deference, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(express_defer_df)
+express_by_defer<-ggplot(express_defer_df, aes(x=sm_polexpress, y=Frequency, fill=deference)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Opinion Expression", y="", fill="Deference to Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+express_by_defer
+
+
+
+### Political Expression by Trust in Government
+cht <- chisq.test(ab7$sm_polexpress, ab7$gov_trust)
+cht$statistic
+corr<-cor.test(ab7$sm_polexpress, ab7$gov_trust, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+express_trust<- table(ab7$sm_polexpress, ab7$gov_trust)
+express_trust_p<- prop.table(express_trust, 1)
+express_trust_df <- as.data.frame(express_trust_p)
+names(express_trust_df) <- c("sm_polexpress", "gov_trust",  "Frequency")
+express_trust_df$sm_polexpress<-recode_factor(express_trust_df$sm_polexpress, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+express_trust_df$gov_trust<-recode_factor(express_trust_df$gov_trust, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(express_trust_df)
+express_by_trust<-ggplot(express_trust_df, aes(x=sm_polexpress, y=Frequency, fill=gov_trust)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Opinion Expression", y="", fill="Trust in Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+express_by_trust
+
+
+
+
+### Political Expression by Satisfaction with Government
+cht <- chisq.test(ab7$sm_polexpress, ab7$gov_satis)
+cht$statistic
+corr<-cor.test(ab7$sm_polexpress, ab7$gov_satis, method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+express_satis<- table(ab7$sm_polexpress, ab7$gov_satis)
+express_satis_p<- prop.table(express_satis, 1)
+express_satis_df <- as.data.frame(express_satis_p)
+names(express_satis_df) <- c("sm_polexpress", "gov_satis",  "Frequency")
+express_satis_df$sm_polexpress<-recode_factor(express_satis_df$sm_polexpress, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+express_satis_df$gov_satis<-recode_factor(express_satis_df$gov_satis, '1'= "Strongly Disagree", '2'= "Disagree", '3'= "Agree", '4'= "Strongly agree")
+glimpse(express_satis_df)
+express_by_satis<-ggplot(express_satis_df, aes(x=sm_polexpress, y=Frequency, fill=gov_satis)) + geom_col(position="dodge")+
+  scale_y_continuous(label=percent) +
+  labs(title="",
+    caption="",
+    subtitle=sbtitle,
+    x="Using Social Media for Political Opinion Expression", y="", fill="Satisfaction with Government")+
+  theme_bw() + 
+  theme(title=element_text(size=14), axis.text=element_text(size=12))
+express_by_satis
+
+
+
+
+### Political Expression by Support for Government Index
+ab7$express<-recode_factor(ab7$sm_polexpress, '1'="Never", '2'="Less than once a week", '3'="Once a week", '4'="Several times a week", '5'="At least once daily")
+cht <- chisq.test(ab7$sm_polexpress, ab7$gov_index)
+cht$statistic
+corr<-cor.test(ab7$sm_polexpress, ab7$gov_index,  method="spearman")
+correlation <- corr$estimate
+p_value<- corr$p.value
+sbtitle <- sprintf("Chi-Square Test Statistic = %.1f,  Spearman Correlation = %.3f, P-value = %.3f", cht$statistic,correlation,  p_value)
+express_index<- ab7 |>
+  filter(!is.na(express), 
+         !is.na(gov_index)) |>
+  ggplot(aes(x = express, y = gov_index)) +
+  geom_boxplot(aes(fill = express), color = "black") + 
+  geom_jitter(width = 0.1, alpha = 0.5) +                      # Add jittered points 
+  labs(title = "", 
+       x = "Using Social Media for Political Opinion Expression", 
+       y = "Support for Government Index", 
+       subtitle=sbtitle,
+       fill="") +
+  theme_minimal() +
+  geom_text(data = . %>% group_by(express) %>%
+              filter(gov_index == max(gov_index)), 
+            aes(label = paste("Max:", round(gov_index, 2)), 
+                y = gov_index + 0.2), vjust = -0.5) +           # Label max values
+  geom_text(data = . %>% group_by(express) %>%
+              filter(gov_index == min(gov_index)), 
+            aes(label = paste("Min:", round(gov_index, 2)), 
+                y = gov_index - 0.2), vjust = 1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean:", round(..y.., 2)), vjust = -56), 
+               position = position_dodge(width = 1))+
+  theme(legend.position = "none")
+express_index
+```
+
+```{r}
+m1<- plm(sm_polexpress~ deference,  data = pdata7, model = "pooling")
+m2<- plm(sm_polexpress~ deference+ unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m3<- plm(sm_polexpress~ gov_trust,  data = pdata7, model = "pooling")
+m4<- plm(sm_polexpress~ gov_trust + unemployed +pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m5<- plm(sm_polexpress~ gov_satis,  data = pdata7, model = "pooling")
+m6<- plm(sm_polexpress~ gov_satis + unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m7<- plm(sm_polexpress~ gov_index,  data = pdata7, model = "pooling")
+m8<- plm(sm_polexpress~ gov_index + unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, type = "text",
+          omit.stat=c("f", "ser"))
+
+
+m1<- plm(sm_polinfo~ deference,  data = pdata7, model = "pooling")
+m2<- plm(sm_polinfo~ deference + unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m3<- plm(sm_polinfo~ gov_trust,  data = pdata7, model = "pooling")
+m4<- plm(sm_polinfo~ gov_trust + unemployed +pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m5<- plm(sm_polinfo~ gov_satis,  data = pdata7, model = "pooling")
+m6<- plm(sm_polinfo~ gov_satis + unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+m7<- plm(sm_polinfo~ gov_index,  data = pdata7, model = "pooling")
+m8<- plm(sm_polinfo~ gov_index + unemployed + pol_inter + age + educ + female + religious + urban + single + cname+dem_index,  data = pdata7, model = "pooling")
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, type = "text",
+          omit.stat=c("f", "ser"))
+
+table<-stargazer(
+  m1, m2, m3, m4, m5, m6, m7, m8,
+  dep.var.labels = c("Support for Democracy"),
+  covariate.labels = c("SM Pol Ex", "Deference to Gov", "Unemployed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Urban", "Single", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", "Palestine", "Sudan", "Tunisia", "SM Pol Ex: Deference to Gov", "Trust in Gov", "SM Pol Ex: Trust in Gov", "Satisfaction with Gov", "SM Pol Exp: Satisfaction with Gov", "Support for Gov Index", "SM Pol Ex: Support for Gov Index"),
+  type = "text",
+  omit.stat=c("f", "ser")
+)
+```

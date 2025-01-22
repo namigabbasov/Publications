@@ -1,0 +1,152 @@
+---
+title: "ab1"
+format: html
+editor: visual
+---
+```{r}
+# Install required packages if not already installed
+# install.packages("haven")
+# install.packages("ggplot2")
+# install.packages("car")
+# install.packages("plm")
+# install.packages("stargazer")
+# install.packages("nnet")
+# install.packages("MASS")
+# install.packages("jtools")
+# install.packages("tidyverse")
+# install.packages("magrittr")
+# install.packages("gridExtra")
+# install.packages("lme4")
+# install.packages("lmerTest")
+# install.packages("interactions")
+
+# Load libraries
+library(haven)
+library(ggplot2)
+library(car)
+library(plm)
+library(stargazer)
+library(nnet)
+library(MASS)
+library(jtools)
+library(tidyverse)
+library(magrittr)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(interactions)
+
+# Set global options
+options(scipen = 100)
+```
+
+
+## Variables
+
+```{r}
+ab1 <- read_sav("ab1.sav")
+
+## Support for Democracy 
+ab1$dem<-ifelse(ab1$q2451 > 4, NA, 5 - as.numeric(ab1$q2451))                                   ### Is A democratic political system good or bad? 
+ab1$dem_econ<-ifelse(ab1$q2321 > 4, NA, as.numeric(ab1$q2321))    
+ab1$dem_decisive<-ifelse(ab1$q2322 > 4, NA, as.numeric(ab1$q2322)) 
+ab1$dem_stablity<-ifelse(ab1$q2323 >4, NA, as.numeric(ab1$q2323)) 
+ab1$dem_better<-ifelse(ab1$q2324 > 4, NA, 5 - as.numeric(ab1$q2324)) 
+ab1$dem_index<-(ab1$dem_econ+ab1$dem_decisive+ab1$dem_stablity)/3                               ### Democracy Index 
+ab1$deference<-ifelse(ab1$q221 > 4, NA, 5-as.numeric(ab1$q221))                                 ### agree with gov decisions 
+
+
+### conduct principal component analysis(PCA) 
+
+# Subset the data
+data_for_pca <- ab1[, c("dem_decisive", "dem_econ", "dem_stablity")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+
+
+
+
+## IV - Internet/Social Media 
+ab1$internet_polinfo<-ifelse(ab1$q217 %in% c(10, 97, 98, 99), NA, 
+                             ifelse(ab1$q217 == 5,1, 0)) 
+ab1$internet_use<-ifelse(ab1$q222 > 5, NA, 6-as.numeric(ab1$q222)) 
+
+
+ 
+## Controls
+ab1$gov_trust<-ifelse(ab1$q2011 > 4, NA, 5 - as.numeric(ab1$q2011))                     ### this is actually trust in prime minster 
+ab1$age <- ifelse(ab1$q701 > 97, NA, ab1$q701)
+ab1$age_cat <- ab1$q701agecategories
+ab1$female<-ifelse(ab1$q702 ==99, NA, ab1$q702-1)
+ab1$educ<-ifelse(ab1$q703 >7, NA, as.numeric(ab1$q703))                                 ### education 
+ab1$unemployed<-ifelse(ab1$q704 >2, NA, as.numeric(ab1$q704)-1)
+ab1$pol_inter<- ifelse(ab1$q215 > 4, NA, 5- as.numeric(ab1$q215))                       ### Political Interest
+ab1$inter_trust<-ifelse(ab1$q204 > 2, NA, 2- as.numeric(ab1$q204))                      ### interpersonal trust
+ab1$single<-ifelse(ab1$q709 == 1,1,0)                                                   ### marital status- there are NAs coded as "0"
+ab1$satis_gov <-ifelse(ab1$q244 %in% c(99,98,96,97), NA, as.numeric(ab1$q244))          ### Overall gov satis
+ab1$religious<-ifelse(ab1$q714a >3, NA, 4- as.numeric(ab1$q714a))
+
+
+ab1$women_pres <- ifelse(ab1$q5051 >4 , NA, 5-as.numeric(ab1$q5051))
+ab1$women_work <- ifelse(ab1$q5052 >4 , NA, 5-as.numeric(ab1$q5052))
+ab1$women_leader <- ifelse(ab1$q5053 > 4, NA, as.numeric(ab1$q5053))
+ab1$women_educ <- ifelse(ab1$q5054 > 4, NA, as.numeric(ab1$q5054))
+ab1$women_equaljob <- ifelse(ab1$q5055 >4 , NA, 5-as.numeric(ab1$q5055))
+ab1$women_equalwage <- ifelse(ab1$q5056 > 4, NA, 5-as.numeric(ab1$q5056))
+ab1$women_travel <- ifelse(ab1$q5057 > 4, NA, 5-as.numeric(ab1$q5057))
+ab1$women_index <- (ab1$women_pres+ab1$women_work+ab1$women_leader+ab1$women_educ+ab1$women_equaljob+ab1$women_equalwage+ab1$women_travel) / 7            ### Gender Egalitarianism index
+ab1$country<-as.factor(ab1$country)
+ab1$cname <- ifelse(ab1$country == "1", "Jordan",
+                      ifelse(ab1$country == "2", "Palestine",
+                        ifelse(ab1$country == "3", "Algeria",
+                          ifelse(ab1$country == "4", "Morocco",
+                            ifelse(ab1$country == "5", "Kuwait",
+                              ifelse(ab1$country == "6", "Lebanon",
+                                ifelse(ab1$country == "7", "Yemen",
+                                  ifelse(ab1$country == "8", "Bahrain", NA))))))))
+                                                                                   
+
+## interaction variables
+ab1$deference_c<-ab1$deference - mean(ab1$deference, trim = 0, na.rm = TRUE)
+ab1$info_c<-ab1$internet_polinfo - mean(ab1$internet_polinfo, trim = 0, na.rm = TRUE)
+ab1$deference_info<-ab1$deference_c*ab1$info_c
+```
+
+```{r}
+# Plot histogram
+ggplot(ab1, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(title="", 
+       x="Support for Democracy: AB1", 
+       y="Frequency") +
+  theme_minimal()
+```
+
+## Models
+
+```{r}
+pdata1<- pdata.frame(ab1, index = "country")  ### getting pooled data 
+
+
+
+## Main models: polinfo and polexpress 
+m1<- plm(dem_index~ internet_polinfo,  data = pdata1, model = "pooling")
+m2<- plm(dem_index~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+inter_trust+cname,  data = pdata1, model = "pooling")
+m3<- plm(dem_index~ internet_use,  data = pdata1, model = "pooling")
+m4<- plm(dem_index~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+inter_trust+cname,  data = pdata1, model = "pooling")
+```

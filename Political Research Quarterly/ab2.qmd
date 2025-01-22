@@ -1,0 +1,219 @@
+---
+title: "ab2"
+format: html
+editor: visual
+---
+
+```{r}
+# install.packages("haven")
+# install.packages("ggplot2")
+# install.packages("car")
+# install.packages("plm")
+# install.packages("stargazer")
+# install.packages("nnet")
+# install.packages("MASS")
+# install.packages("jtools")
+# install.packages("tidyverse")
+# install.packages("magrittr")
+# install.packages("gridExtra")
+# install.packages("lme4")
+# install.packages("lmerTest")
+# install.packages("interactions")
+
+# Load libraries
+library(haven)
+library(ggplot2)
+library(car)
+library(plm)
+library(stargazer)
+library(nnet)
+library(MASS)
+library(jtools)
+library(tidyverse)
+library(magrittr)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(interactions)
+
+# Set global options
+options(scipen = 100)
+
+```
+
+## Variables
+
+```{r}
+ab2 <- read_sav("ab2.sav")
+
+## Support for Democracy 
+ab2$dem<-ifelse(ab2$q5171 %in% c(0, 8, 9), NA, 5 - as.numeric(ab2$q5171))                        ### Is A democratic political system good or bad? 
+ab2$dem_econ<-ifelse(ab2$q5161 %in% c(0, 8, 9), NA, as.numeric(ab2$q5161))    
+ab2$dem_decisive<-ifelse(ab2$q5162 %in% c(0, 8, 9), NA, as.numeric(ab2$q5162)) 
+ab2$dem_stablity<-ifelse(ab2$q5163 %in% c(0, 8, 9), NA, as.numeric(ab2$q5163)) 
+ab2$dem_better<-ifelse(ab2$q5164 %in% c(0, 8, 9), NA, 5 - as.numeric(ab2$q5164)) 
+ab2$dem_index<-(ab2$dem_econ+ab2$dem_decisive+ab2$dem_stablity)/3                  ### Democracy Index 
+ab2$deference<-ifelse(ab2$q216 %in% c(0, 8, 9), NA, 5-as.numeric(ab2$q216))                       ### agree with gov decisions 
+
+
+
+
+
+###PCA
+
+# Subset the data
+data_for_pca <- ab2[, c("dem_decisive", "dem_econ", "dem_stablity")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for the first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print the proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+
+
+## IV- Internet/Social Media 
+ab2$internet_polinfo<-ifelse(ab2$q4101 %in% c(0, 8, 9), NA, 2-ab2$q4101)
+ab2$internet_polexpress<-ifelse(ab2$q4102 %in% c(0, 8, 9), NA, 2-ab2$q4102)
+
+ab2$internet_polnews<-ifelse(ab2$q4065 %in% c(5, 0, 8, 9), NA, 5-as.numeric(ab2$q4065))  
+ab2$internet_polnewstrust<-ifelse(ab2$q407 == 5, 1, 0)  
+ab2$internet_use<-ifelse(ab2$q409 %in% c(0, 8, 9), NA, 6-as.numeric(ab2$q409))  
+
+
+
+
+
+## Controls
+ab2$age <- ifelse(ab2$q1001 %in% c(0, 994, 998, 999), NA, ab2$q1001)
+ab2$female<-ifelse(ab2$q1002 ==2, 1, 0)
+ab2$educ<-ifelse(ab2$q1003 %in% c(9, 0), NA, as.numeric(ab2$q1003))                               ### Education 
+table(ab2$t1003) # educ in Tunisia. 1=1; 2=2; 3=3; 4=4; 5=6; 6=7; So, here is no "5"              ### Tunisia
+ab2$unemployed<-ifelse(ab2$q1004 %in% c(9, 0), NA, as.numeric(ab2$q1004)-1)
+ab2$pol_inter<- ifelse(ab2$q404 %in% c(8, 9, 0), NA, 5- as.numeric(ab2$q404))                     ### Political Interest
+ab2$gov_trust <- ifelse(ab2$q2011 %in% c(8, 9, 0), NA, 5 - as.numeric(ab2$q2011))                 ### Trust in Gov
+ab2$inter_trust<-ifelse(ab2$q103 %in% c(8,9,0), NA, 2- as.numeric(ab2$q103))                      ### interpersonal trust
+ab2$single<-ifelse(ab2$q1010 == 1,1,0)                                                            ### marital status- there are NAs coded as "0"
+ab2$urban<-ifelse(ab2$q13 ==1, 1, 0)                                                              ### urban- no NAs
+ab2$satis_gov <-ifelse(ab2$q513 %in% c(99,98,96,0), NA, as.numeric(ab2$q513))                     ### Overall gov satis
+ab2$religious<-ifelse(ab2$q609 %in% c(9,0), NA, 4- as.numeric(ab2$q609))
+
+ab2$women_work <- ifelse(ab2$q60102 %in% c(8,9,0), NA, 5-as.numeric(ab2$q60102))
+ab2$women_leader <- ifelse(ab2$q60103 %in% c(8,9,0), NA, as.numeric(ab2$q60103))
+ab2$women_educ <- ifelse(ab2$q60104 %in% c(8,9,0), NA, as.numeric(ab2$q60104))
+ab2$women_index <- (ab2$women_work +ab2$women_leader +ab2$women_educ) / 3                          ### Gender Egalitarianism index
+ab2$country<-as.factor(ab2$country)
+ab2$cname <- ifelse(ab2$country == "1", "Algeria",
+                      ifelse(ab2$country == "5", "Egypt",
+                             ifelse(ab2$country == "7", "Iraq",
+                                    ifelse(ab2$country == "8", "Jordan",
+                                                  ifelse(ab2$country == "10", "Lebanon",
+                                                         ifelse(ab2$country == "15", "Palestine",
+                                                              ifelse(ab2$country == "17", "Saudi Arabia",
+                                                                ifelse(ab2$country == "19", "Sudan",
+                                                                       ifelse(ab2$country == "21", "Tunisia",
+                                                                       ifelse(ab2$country == "22", "Yemen",NA
+                                                                                    ))))))))))
+
+
+
+### interaction variables
+ab2$deference_c<-ab2$deference - mean(ab2$deference, trim = 0, na.rm = TRUE)
+ab2$info_c<-ab2$internet_polinfo - mean(ab2$internet_polinfo, trim = 0, na.rm = TRUE)
+ab2$express_c<-ab2$internet_polexpress - mean(ab2$internet_polexpress, trim = 0, na.rm = TRUE)
+ab2$deference_info<-ab2$deference_c*ab2$info_c
+ab2$deference_express<-ab2$deference_c*ab2$express_c
+```
+
+```{r}
+### plot distribution
+ggplot(ab2, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(title="", 
+       x="Support for Democracy:AB2", 
+       y="Frequency") +
+  theme_minimal()
+```
+
+## Models
+
+```{r}
+pdata2 <- pdata.frame(ab2, index = "cname")  ### prepare pooled data 
+
+## Main models: polinfo and polexpress 
+m1<- plm(dem_index~ internet_polinfo,  data = pdata2, model = "pooling")
+m2<- plm(dem_index~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m3<- plm(dem_index~ internet_polexpress,  data = pdata2, model = "pooling")
+m4<- plm(dem_index~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m5<- plm(dem_index~ internet_use,  data = pdata2, model = "pooling")
+m6<- plm(dem_index~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m7<- plm(dem_index~ internet_polnews,  data = pdata2, model = "pooling")
+m8<- plm(dem_index~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, type = "text")
+```
+
+## Models: AB1 and AB2
+
+```{r}
+pdata1<- pdata.frame(ab1, index = "country")  ### getting pooled data 
+pdata2 <- pdata.frame(ab2, index = "cname")  ### getting pooled data 
+
+
+## Main models: polinfo and polexpress 
+m1<- plm(dem_index~ internet_polinfo,  data = pdata1, model = "pooling")
+m2<- plm(dem_index~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+cname,  data = pdata1, model = "pooling")
+m3<- plm(dem_index~ internet_use,  data = pdata1, model = "pooling")
+m4<- plm(dem_index~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+cname,  data = pdata1, model = "pooling")
+
+
+
+
+
+## Main models: polinfo and polexpress 
+m5<- plm(dem_index~ internet_polinfo,  data = pdata2, model = "pooling")
+m6<- plm(dem_index~ internet_polinfo+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m7<- plm(dem_index~ internet_polexpress,  data = pdata2, model = "pooling")
+m8<- plm(dem_index~ internet_polexpress+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m9<- plm(dem_index~ internet_use,  data = pdata2, model = "pooling")
+m10<- plm(dem_index~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+m11<- plm(dem_index~ internet_polnews,  data = pdata2, model = "pooling")
+m12<- plm(dem_index~ internet_polnews+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata2, model = "pooling")
+
+
+
+
+
+
+
+stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11,m12,
+          dep.var.labels = c("Support for Democracy"), 
+          add.lines = list(c("", "", "", "AB 1", "", "", "", "AB 2")),
+          covariate.labels = c("Internet Pol Info", "Deference to Gov", "Unemployed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Trust in Gov",  "Single", "Bahrain","Urban", "Egypt","Iraq", "Jordan", "Lebanon", "Palestine","Saudi Arabia", "Sudan", "Yemen", "Internet Use",   "Internet Pol Express","Internet Pol News"), 
+          type = "text",
+          omit.stat = c("f", "ser"), out = "AB1-2.html", style = "apsr")
+```
+
+```{r}
+### Visualize models using tab_model with complete pred.labels
+tab_model(m1, m2, m3, m4, m5, m6,m7,m8, m9 ,m10, m11, m12, 
+          show.ci = FALSE,              
+          show.re.var = TRUE,
+          show.se = TRUE,
+          show.p = FALSE, 
+          p.style = "stars",
+          dv.labels = c("M 1", "M 2", "M 3", 
+                        "M 4", "M 5", "M 6", "M 7", "M 8", "M 9", 
+                        "M 10", "M 11", "M 12"),
+          pred.labels = c("Intercept","Internet Pol Info", "Deference to Gov", "Unemployed", "Interest in Politics", "Age", "Education", "Female (baseline: Male)", "Religiosity", "Trust in Gov",  "Single", "Bahrain","Urban", "Egypt","Iraq", "Jordan", "Lebanon", "Palestine","Saudi Arabia", "Sudan", "Yemen", "Internet Use",   "Internet Pol Express","Internet Pol News"),
+  file="AB1-2.doc")
+```

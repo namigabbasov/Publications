@@ -1,0 +1,257 @@
+---
+title: "ab5"
+format: html
+editor: visual
+---
+
+```{r}
+# install.packages("haven")
+# install.packages("ggplot2")
+# install.packages("car")
+# install.packages("plm")
+# install.packages("stargazer")
+# install.packages("nnet")
+# install.packages("MASS")
+# install.packages("jtools")
+# install.packages("tidyverse")
+# install.packages("magrittr")
+# install.packages("gridExtra")
+# install.packages("lme4")
+# install.packages("lmerTest")
+# install.packages("interactions")
+
+# Load libraries
+library(haven)
+library(ggplot2)
+library(car)
+library(plm)
+library(stargazer)
+library(nnet)
+library(MASS)
+library(jtools)
+library(tidyverse)
+library(magrittr)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(interactions)
+
+# Set global options
+options(scipen = 100)
+```
+
+
+
+```{r}
+ab5 <- read_sav("ab5.sav")
+
+
+
+## DV- Support for Democracy 
+ab5$dem_direct<-ifelse(ab5$Q516A == 3, 1, 0) 
+ab5$dem_econ<-ifelse(ab5$Q516_1>5, NA, as.numeric(ab5$Q516_1))    
+ab5$dem_decisive<-ifelse(ab5$Q516_2>5, NA, as.numeric(ab5$Q516_2)) 
+ab5$dem_stablity<-ifelse(ab5$Q516_3>5, NA, as.numeric(ab5$Q516_3)) 
+ab5$dem_better<-ifelse(ab5$Q516_4>5, NA, 5 - as.numeric(ab5$Q516_4)) 
+ab5$dem_index<-(ab5$dem_decisive+ab5$dem_econ+ab5$dem_stablity)/3           ### Democracy Index 
+ab5$deference<-ifelse(ab5$Q216 >5, NA, 5-as.numeric(ab5$Q216))                             ### agree with gov decisions 
+
+###PCA for DV Index 
+
+# Subset the data
+data_for_pca <- ab5[, c("dem_decisive", "dem_econ", "dem_stablity")]
+
+# Handle missing values by omitting rows with NAs
+data_for_pca <- na.omit(data_for_pca)
+
+# Conduct PCA and scale the data
+pca_result <- prcomp(data_for_pca, scale. = TRUE)
+
+# Inspect PCA loadings for the first principal component
+cat("Loadings for the first principal component:\n")
+print(pca_result$rotation[,1])
+
+# Calculate and print the proportion of variance explained by each principal component
+explained_variance <- pca_result$sdev^2
+total_variance <- sum(explained_variance)
+explained_variance_ratio <- explained_variance / total_variance
+cat("\nProportion of variance explained by each component:\n")
+print(explained_variance_ratio)
+
+
+
+### IV- Social Media
+ab5$internet_use<- ifelse(ab5$Q409 > 6, NA, 7- as.numeric(ab5$Q409))                      ### Internet Use
+ab5$sm_daily<- ifelse(ab5$Q424 > 5, NA, as.numeric(ab5$Q424))                             ### Daily social media use(who use internet)
+ab5$sm_prime<-ifelse(ab5$Q421 %in% c(98, 99),  NA, 
+                     ifelse(ab5$Q421 ==6, 1, 0))
+ab5$sm_infotrust<-ifelse(ab5$Q521A_3 >5,NA, 5-as.numeric(ab5$Q521A_3))
+ab5$tv_prime<-ifelse(ab5$Q421 == 5, 1, 0)
+
+
+
+
+### Control Variables
+ab5$gov_trust<-ifelse(ab5$Q201A_1 > 4, NA, 5- ab5$Q201A_1)
+ab5$women_pres <- ifelse(ab5$Q601_1>5, NA, 5 - as.numeric(ab5$Q601_1))
+ab5$women_leader <- ifelse(ab5$Q601_3>5, NA, as.numeric(ab5$Q601_3))
+ab5$women_educ <- ifelse(ab5$Q601_4>5, NA, as.numeric(ab5$Q601_4))
+ab5$women_divorce <- ifelse(ab5$Q601_14>5, NA, 5 - as.numeric(ab5$Q601_14))
+ab5$women_husband <- ifelse(ab5$Q601_18>5, NA, as.numeric(ab5$Q601_18))
+ab5$women_index <- (ab5$women_pres + ab5$women_leader + 
+                      ab5$women_educ +ab5$women_divorce + ab5$women_husband) / 5 ### Gender Egalitarianism
+ab5$female <- ifelse(ab5$Q1002 == 2, 1, 0) # Female 
+ab5$gov_employment <- ifelse(ab5$Q204_2>5, NA, 5 - as.numeric(ab5$Q204_2))
+ab5$gov_inequality <- ifelse(ab5$Q204_3>5, NA, 5 - as.numeric(ab5$Q204_3))
+ab5$gov_security <- ifelse(ab5$Q204_11>5, NA, 5 - as.numeric(ab5$Q204_11))
+ab5$gov_economy <- ifelse(ab5$Q204_20>5, NA, 5 - as.numeric(ab5$Q204_20))
+ab5$gov_index <- (ab5$gov_employment + ab5$gov_inequality + 
+                    ab5$gov_security + ab5$gov_economy) / 4  ### Government Performance
+ab5$inter_trust<- ifelse(ab5$Q103 > 3, NA, 
+                          ifelse(ab5$Q103 == 1, 2, 1)) ### Interpersonal Trust 
+ab5$age <- as.numeric(ab5$Q1001) ### Age
+ab5$educ <- ifelse(ab5$Q1003 > 7, NA, as.numeric(ab5$Q1003)) ### Education
+ab5$unemployed <- ifelse(ab5$Q1005 == 6, 1, 
+                         ifelse(ab5$Q1005 > 7, NA, 0)) ### Unemployed
+ab5$single <- ifelse(ab5$Q1010 == 1, 1, 
+                     ifelse(ab5$Q1010 > 7, NA, 0)) ### Single
+ab5$children = ifelse(ab5$Q1010B1 == 1, 1, 0) ### Children
+ab5$pol_inter <- ifelse(ab5$Q404 > 5, NA, 5- as.numeric(ab5$Q404)) ### Political Interest
+ab5$religious<-ifelse(ab5$Q609 >3, NA, 4- as.numeric(ab5$Q609))
+ab5$country<-as.factor(ab5$country)
+ab5$cname <- ifelse(ab5$country == "1", "Algeria",
+                      ifelse(ab5$country == "5", "Egypt",
+                             ifelse(ab5$country == "7", "Iraq",
+                                    ifelse(ab5$country == "8", "Jordan",
+                                           ifelse(ab5$country == "9", "Kuwait",
+                                                  ifelse(ab5$country == "10", "Lebanon",
+                                                         ifelse(ab5$country == "11", "Libya",
+                                                                ifelse(ab5$country == "13", "Morocco",
+                                                                       ifelse(ab5$country == "15", "Palestine",
+                                                                              ifelse(ab5$country == "19", "Sudan",
+                                                                                     ifelse(ab5$country == "21", "Tunisia",
+                                                                                            ifelse(ab5$country == "22", "Yemen",NA))))))))))))
+
+
+
+
+
+
+
+ab5$quota <- ifelse(ab5$Q601A>5, NA, 5 - as.numeric(ab5$Q601A))
+ab5$satisfy_government <- ifelse(as.numeric(ab5$Q513)>10, NA, as.numeric(ab5$Q513))
+ab5$shouldsupportgov <- ifelse(ab5$Q216>5, NA, 5 - as.numeric(ab5$Q216))
+ab5$preferisl_bin <- ifelse(ab5$Q505A>4, NA,
+                            ifelse(ab5$Q505A>2, 0, 1)) ### Islamist
+
+
+
+# Country subsets
+ab5alg <- subset(ab5, country==1)
+ab5egy <- subset(ab5, country==5)
+ab5ir <- subset(ab5, country==7)
+ab5jor <- subset(ab5, country==8)
+ab5kuw <- subset(ab5, country==9)
+ab5leb <- subset(ab5, country==10)
+ab5lib <- subset(ab5, country==11)
+ab5mor <- subset(ab5, country==13)
+ab5pal <- subset(ab5, country==15)
+ab5sud <- subset(ab5, country==19)
+ab5tun <- subset(ab5, country==21)
+ab5yem <- subset(ab5, country==22)
+```
+
+## EDA
+
+```{r}
+# plot distribution 
+ggplot(ab5, aes(x=dem_index)) + 
+  geom_histogram(binwidth=0.6, fill="blue", color="black", alpha=0.7) +
+  labs(title="", 
+       x="Support for Democracy: AB5", 
+       y="Frequency") +
+  theme_minimal()
+```
+
+## Models
+
+### Not Used
+
+```{r}
+pdata5 <- pdata.frame(ab5, index = "country")
+
+
+# Main models: Democracy 
+m1<- plm(dem_index~ internet_use,  data = pdata5, model = "pooling")
+m2<- plm(dem_index~ internet_use+deference+women_index+unemployed+pol_inter+age+educ+female+religious+gov_trust+cname,  data = pdata5, model = "pooling")
+m3<- plm(dem_index~ sm_daily,  data = pdata5, model = "pooling")
+m4<- plm(dem_index~ sm_daily+deference+women_index+unemployed+pol_inter+age+educ+female+religious+gov_trust+cname,  data = pdata5, model = "pooling")
+m5<- plm(dem_index~ sm_prime,  data = pdata5, model = "pooling")
+m6<- plm(dem_index~ sm_prime+deference+women_index+unemployed+pol_inter+age+educ+female+religious+gov_trust+cname,  data = pdata5, model = "pooling")
+stargazer(m1, m2, m3, m4, m5, m6,   type = "text")
+```
+
+### General Use of Internet Social Media
+
+```{r}
+pdata3 <- pdata.frame(ab3, index = "cname")  ### getting pooled data 
+pdata3$cname <- as.factor(pdata3$cname)
+pdata3$cname <- relevel(pdata3$cname, ref = "Iraq")
+pdata4 <- pdata.frame(ab4, index = "cname")  ### getting pooled data 
+pdata5 <- pdata.frame(ab5, index = "country")
+pdata7<- pdata.frame(ab7, index = "cname")  ### getting pooled data
+
+m1<- plm(dem_index~ internet_use,  data = pdata3, model = "pooling")
+m2<- plm(dem_index~ internet_use+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname+gov_satis+deference,  data = pdata3, model = "pooling")
+m3<- plm(dem_index~ internet_use,  data = pdata4, model = "pooling")
+m4<- plm(dem_index~ internet_use+unemployed+pol_inter+age+educ+female+religious+gov_trust+single+urban+cname,  data = pdata4, model = "pooling")
+m5<- plm(dem_index~ internet_use,  data = pdata5, model = "pooling")
+m6<- plm(dem_index~ internet_use+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+cname,  data = pdata5, model = "pooling")
+m7<- plm(dem_index~ sm_daily+sm_prime,  data = pdata5, model = "pooling")
+m8<- plm(dem_index~ sm_daily+sm_prime+deference+unemployed+pol_inter+age+educ+female+religious+gov_trust+cname,  data = pdata5, model = "pooling")
+m9<- plm(dem_index~ internet_use,  data = pdata7, model = "pooling")
+m10<- plm(dem_index~ internet_use + unemployed + pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+m11<- plm(dem_index~ sm_daily+sm_prime,  data = pdata7, model = "pooling")
+m12<- plm(dem_index~ sm_daily+sm_prime + unemployed +pol_inter + age + educ + female + religious + urban + single + cname,  data = pdata7, model = "pooling")
+#stargazer(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10,m11,m12, type = "text", omit.stat = c("f", "ser"))
+
+
+stargazer(
+  m1, m2, m3, m4, m5, m6, m7, m8,m9, m10, m11, m12,
+  dep.var.labels = c("Support for Democracy"),
+  covariate.labels = c("Internet Use",  "Unemployed", "Interest in Politics", "Age", "Education", "Female (ref:Male)", "Religiosity", "Trust in Gov","Single", "Urban", "Algeria", "Egypt", "Iraq", "Jordan", "Lebanon", "Libya", "Mauritania", "Morocco", "Sudan",   "Satis with Gov","Tunisia","Yemen","Deference to Gov","Palestine","Daily SM Use", "SM for News"),
+  type = "text",
+  omit.stat=c("f", "ser"),out = "general_use.html", style = "apsr"
+)
+```
+
+```{r}
+m1 <- lmer(dem_index ~ internet_use + (1 | cname), data = pdata3)
+m2 <- lmer(dem_index ~ internet_use*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + gov_trust + single + urban + gov_satis + deference + (1 | cname), data = pdata3)
+m3 <- lmer(dem_index ~ internet_use*as.factor(regime) + (1 | cname), data = pdata4)
+m4 <- lmer(dem_index ~ internet_use*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + gov_trust + single + urban + (1 | cname), data = pdata4)
+#m5 <- lmer(dem_index ~ internet_use*as.factor(regime) + (1 | cname), data = pdata5)
+#m6 <- lmer(dem_index ~ internet_use*as.factor(regime) + deference + unemployed + pol_inter + age + educ + female + religious + gov_trust + (1 | cname), data = pdata5)
+#m7 <- lmer(dem_index ~ sm_daily*as.factor(regime) + sm_prime*as.factor(regime) + (1 | cname), data = pdata5)
+#m8 <- lmer(dem_index ~ sm_daily*as.factor(regime) + sm_prime*as.factor(regime) + deference + unemployed + pol_inter + age + educ + female + religious + gov_trust + (1 | cname), data = pdata5)
+m9 <- lmer(dem_index ~ internet_use*as.factor(regime) + (1 | cname), data = pdata7)
+m10 <- lmer(dem_index ~ internet_use*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + urban + single + (1 | cname), data = pdata7)
+m11 <- lmer(dem_index ~ sm_daily*as.factor(regime) + sm_prime*as.factor(regime) + (1 | cname), data = pdata7)
+m12 <- lmer(dem_index ~ sm_daily*as.factor(regime) + sm_prime*as.factor(regime) + unemployed + pol_inter + age + educ + female + religious + urban + single + (1 | cname), data = pdata7)
+
+
+
+
+
+# Generate a summary table for all models
+tab_model(m1, m2, m3, m4,  m9, m10, m11, m12,
+          title = "Summary of Mixed Effects Models",
+          show.se = FALSE,      
+          show.ci = FALSE,     
+          show.p=  TRUE,
+          p.style = "stars",
+          dv.labels = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5", 
+                        "Model 6", "Model 7", "Model 8", "Model 9", "Model 10", 
+                        "Model 11", "Model 12"))
+
+```
